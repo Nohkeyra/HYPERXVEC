@@ -76,7 +76,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<Tab>('vectorize');
   const [userInput, setUserInput] = useState('');
   const [selectedPreset, setSelectedPreset] = useState<Preset | null>(null);
-  const [selectedModel, setSelectedModel] = useState<ImageModel>('gemini'); // Default to Gemini
+  const [selectedModel, setSelectedModel] = useState<ImageModel>('gemini');
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
   const [uploadedMimeType, setUploadedMimeType] = useState<string | null>(null);
 
@@ -110,6 +110,7 @@ export default function App() {
   const [lightningBolts, setLightningBolts] = useState<Array<{ id: string; x: number; y: number; color: string; coreColor?: string; initialAngle: number }>>([]);
   const [showColorPalette, setShowColorPalette] = useState(false);
   const [selectedPalette, setSelectedPalette] = useState<ColorPalette | null>(null);
+  const [bottomNavHeight, setBottomNavHeight] = useState(0);
 
   // Multi-key Gemini Free Tier State
   const [geminiKeys, setGeminiKeys] = useState<string[]>(() => {
@@ -120,6 +121,25 @@ export default function App() {
     const saved = localStorage.getItem('activeKeyIndex');
     return saved ? parseInt(saved, 10) : 0;
   });
+
+  // Measure bottom navigation height for proper padding
+  useEffect(() => {
+    const updateBottomNavHeight = () => {
+      const bottomNav = document.querySelector('nav.fixed.bottom-0');
+      if (bottomNav) {
+        setBottomNavHeight(bottomNav.clientHeight);
+      }
+    };
+    
+    updateBottomNavHeight();
+    window.addEventListener('resize', updateBottomNavHeight);
+    window.addEventListener('orientationchange', updateBottomNavHeight);
+    
+    return () => {
+      window.removeEventListener('resize', updateBottomNavHeight);
+      window.removeEventListener('orientationchange', updateBottomNavHeight);
+    };
+  }, []);
 
   useEffect(() => {
     localStorage.setItem('geminiKeys', JSON.stringify(geminiKeys));
@@ -136,7 +156,6 @@ export default function App() {
 
   const switchToNextKey = () => {
     const nextIndex = (activeKeyIndex + 1) % geminiKeys.length;
-    // If we've cycled back to the start and the key is empty, we've exhausted all options
     if (nextIndex === 0 && !geminiKeys[0]) {
       return false;
     }
@@ -165,6 +184,7 @@ export default function App() {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const logEndRef = useRef<HTMLDivElement>(null);
+  const mainRef = useRef<HTMLDivElement>(null);
 
   const addLog = (message: string, type: LogEntry['type'] = 'info') => {
     const newLog: LogEntry = {
@@ -186,39 +206,37 @@ export default function App() {
   }, [logs]);
 
   useEffect(() => {
-    clearLogs(); // Clear any old logs from previous sessions
+    clearLogs();
     addLog('VΞCTOR Engine Initialized', 'success');
     addLog('Mode: Free Tier / Image Generation Only', 'info');
     addLog('Awaiting visual directives...', 'info');
 
     const strikeInterval = setInterval(() => {
-      // Pick an edge: 0=top, 1=right, 2=bottom, 3=left
       const edge = Math.floor(Math.random() * 4);
       let startX, startY, initialAngle;
       
-      if (edge === 0) { // Top
+      if (edge === 0) {
         startX = Math.random() * window.innerWidth;
         startY = 0;
-        initialAngle = 180; // Down
-      } else if (edge === 1) { // Right
+        initialAngle = 180;
+      } else if (edge === 1) {
         startX = window.innerWidth;
         startY = Math.random() * window.innerHeight;
-        initialAngle = 270; // Left
-      } else if (edge === 2) { // Bottom
+        initialAngle = 270;
+      } else if (edge === 2) {
         startX = Math.random() * window.innerWidth;
         startY = window.innerHeight;
-        initialAngle = 0; // Up
-      } else { // Left
+        initialAngle = 0;
+      } else {
         startX = 0;
         startY = Math.random() * window.innerHeight;
-        initialAngle = 90; // Right
+        initialAngle = 90;
       }
 
       const color = isDarkMode ? '#CCFF00' : '#000000';
       const coreColor = isDarkMode ? '#000000' : '#000000';
       const id = Math.random().toString(36).substring(2, 9);
       
-      // Multi-strike effect for "continuous" feel
       const strikes = Math.floor(Math.random() * 3) + 1;
       for (let i = 0; i < strikes; i++) {
         setTimeout(() => {
@@ -233,9 +251,9 @@ export default function App() {
             coreColor,
             initialAngle 
           }]);
-        }, i * 50); // Faster multi-strike
+        }, i * 50);
       }
-    }, Math.random() * 2000 + 8000); // 8-10 seconds
+    }, Math.random() * 2000 + 8000);
 
     return () => clearInterval(strikeInterval);
   }, [isDarkMode]);
@@ -250,7 +268,6 @@ export default function App() {
 
   const handleModelChange = (modelId: ImageModel) => {
     if (activeTab === 'logo design' && modelId !== 'gemini') {
-      // Allow switching but warn
       addLog('Logo Design optimized for Gemini 2.5 Flash. Other models may hallucinate text.', 'info');
     }
     setSelectedModel(modelId);
@@ -269,7 +286,6 @@ export default function App() {
       setSelectedModel('seedream');
       addLog(`Engine optimized for: Typography Art`, 'info');
       
-      // Auto-select first typography preset
       if (TYPOGRAPHY_PRESETS.length > 0 && TYPOGRAPHY_PRESETS[0].presets.length > 0) {
         setSelectedPreset(TYPOGRAPHY_PRESETS[0].presets[0]);
       }
@@ -277,7 +293,6 @@ export default function App() {
       setSelectedModel('gemini');
       addLog(`Engine optimized for: Logo Design`, 'info');
 
-      // Auto-select first logo preset
       if (LOGO_PRESETS.length > 0 && LOGO_PRESETS[0].presets.length > 0) {
         setSelectedPreset(LOGO_PRESETS[0].presets[0]);
       }
@@ -288,9 +303,7 @@ export default function App() {
     setError(null);
   };
 
-  // Auto-select model based on active tab
   useEffect(() => {
-    // We handle this in handleTabChange now, but keep this for initial load
     if (activeTab === 'vectorize' && selectedModel !== 'gemini') {
       setSelectedModel('gemini');
     } else if (activeTab === 'core lettering' && selectedModel !== 'seedream') {
@@ -314,7 +327,7 @@ export default function App() {
           setUploadedMimeType(file.type);
         }
         setError(null);
-        setGenerationCount(0); // Reset count on new image
+        setGenerationCount(0);
       };
       reader.readAsDataURL(file);
     }
@@ -360,8 +373,6 @@ export default function App() {
     e.stopPropagation();
   };
 
-
-
   const handleAnalyze = async () => {
     if (!uploadedImage || !uploadedMimeType) return;
     setIsAnalyzing(true);
@@ -370,7 +381,6 @@ export default function App() {
     try {
       const preset = await analyzeImage(uploadedImage, uploadedMimeType, getActiveGeminiKey());
       
-      // Auto-save the generated preset
       const newPreset = { ...preset, name: `Style ${userPresets.length + 1}` };
       setUserPresets(prev => [newPreset, ...prev]);
       setSelectedPreset(newPreset);
@@ -381,7 +391,6 @@ export default function App() {
       console.error('Analysis failed:', err);
       if (err.message?.includes('429') || err.message?.includes('quota')) {
         if (handleRateLimit()) {
-          // Retry once with new key
           try {
             const preset = await analyzeImage(uploadedImage, uploadedMimeType, getActiveGeminiKey());
             const newPreset = { ...preset, name: `Style ${userPresets.length + 1}` };
@@ -431,7 +440,6 @@ export default function App() {
 
       let prompt = userInput || (activeTab === 'vectorize' ? 'vectorize this image' : 'Artistic Text');
       
-      // Sanitize userInput: Clean string for lettering to avoid AI confusion
       if (activeTab === 'core lettering' && userInput) {
         prompt = userInput.replace(/^"+|"+$/g, '');
       }
@@ -455,7 +463,6 @@ export default function App() {
 
       const skipTurbo = currentModule.shouldSkipTurbo(generationContext);
 
-      // Use module to construct prompts if applicable
       let finalPrompt = currentModule.constructPrompt(generationContext);
       let finalNegativePrompt = currentModule.constructNegativePrompt 
         ? currentModule.constructNegativePrompt(generationContext)
@@ -468,7 +475,6 @@ export default function App() {
       
       let result: string | null = null;
       
-      // Use selectedModel if it's not Gemini, and if we shouldn't skip external engines
       if (selectedModel !== 'gemini' && !skipTurbo) {
         try {
           const engineName = MODEL_OPTIONS.find(m => m.id === selectedModel)?.label || selectedModel;
@@ -480,7 +486,6 @@ export default function App() {
           
           let basePrompt = finalPrompt;
           if (uploadedImage && uploadedMimeType && activeTab !== 'core lettering' && activeTab !== 'logo design') {
-             // Skip subject description for lettering/logo as the module handles it
              addLog('Analyzing image subject for vectorization...', 'process');
              try {
                const subjectDescription = await describeImageSubject(uploadedImage, uploadedMimeType);
@@ -496,11 +501,9 @@ export default function App() {
              }
           }
 
-          // Combine prompt with preset for better results in text-only engine
           const enhancedPrompt = activeTab === 'core lettering' ? basePrompt : `${basePrompt}. Style: ${presetToUse.basePrompt}`;
           result = await generateImage(enhancedPrompt, selectedModel, presetToUse.basePrompt, finalNegativePrompt);
         } catch (turboError: any) {
-          // ... existing error handling ...
           console.error(`${selectedModel} failed`, turboError);
           addLog(`External Engine unavailable: ${turboError.message}`, 'error');
           addLog('Synthesis aborted. Please try again or select a different model.', 'error');
@@ -532,7 +535,6 @@ export default function App() {
         } catch (geminiErr: any) {
           if (geminiErr.message?.includes('429') || geminiErr.message?.includes('quota')) {
             if (handleRateLimit()) {
-              // Retry once
               result = await generateVisual(
                 finalPrompt, 
                 presetToUse,
@@ -619,7 +621,7 @@ export default function App() {
     currentCategories = [{ category: 'User Library', presets: userPresets }];
   }
 
-    return (
+  return (
     <div 
       className="min-h-dvh flex flex-col overflow-x-hidden bg-bg-primary text-text-primary font-sans selection:bg-accent selection:text-bg-primary transition-colors duration-500 relative"
       onDrop={handleFileDrop}
@@ -684,36 +686,34 @@ export default function App() {
               </button>
             ))}
           </div>
-            <button
-              onClick={() => setShowSettings(true)}
-              className="w-10 h-10 md:w-12 md:h-12 flex items-center justify-center rounded-xl md:rounded-2xl bg-bg-secondary border border-border-primary hover:border-accent transition-all duration-300 group"
-            >
-              <Settings size={18} className="text-accent group-hover:rotate-90 transition-transform" />
-            </button>
-            <button
-              onClick={() => setShowLogs(!showLogs)}
-              className={`w-10 h-10 md:w-12 md:h-12 flex items-center justify-center border transition-all duration-300 group ${
-                showLogs ? 'bg-accent border-accent' : 'bg-bg-secondary border-border-primary hover:border-accent'
-              }`}
-              title="System Logs"
-            >
-              <TerminalIcon size={18} className={`${showLogs ? 'text-bg-primary' : 'text-accent'} transition-colors`} />
-            </button>
-            <button
-              onClick={() => setShowGallery(true)}
-              className="w-10 h-10 md:w-12 md:h-12 flex items-center justify-center rounded-xl md:rounded-2xl bg-bg-secondary border border-border-primary hover:border-accent transition-all duration-300 group"
-              title="Gallery"
-            >
-              <Layers size={18} className="text-accent" />
-            </button>
-            <button
-              onClick={() => setIsDarkMode(!isDarkMode)}
-              className="w-10 h-10 md:w-12 md:h-12 flex items-center justify-center rounded-xl md:rounded-2xl bg-bg-secondary border border-border-primary hover:border-accent transition-all duration-300 group"
-            >
-              {isDarkMode ? <Sun size={18} className="text-accent group-hover:rotate-45 transition-transform" /> : <Moon size={18} className="text-accent group-hover:-rotate-12 transition-transform" />}
-            </button>
-
-
+          <button
+            onClick={() => setShowSettings(true)}
+            className="w-10 h-10 md:w-12 md:h-12 flex items-center justify-center rounded-xl md:rounded-2xl bg-bg-secondary border border-border-primary hover:border-accent transition-all duration-300 group"
+          >
+            <Settings size={18} className="text-accent group-hover:rotate-90 transition-transform" />
+          </button>
+          <button
+            onClick={() => setShowLogs(!showLogs)}
+            className={`w-10 h-10 md:w-12 md:h-12 flex items-center justify-center border transition-all duration-300 group ${
+              showLogs ? 'bg-accent border-accent' : 'bg-bg-secondary border-border-primary hover:border-accent'
+            }`}
+            title="System Logs"
+          >
+            <TerminalIcon size={18} className={`${showLogs ? 'text-bg-primary' : 'text-accent'} transition-colors`} />
+          </button>
+          <button
+            onClick={() => setShowGallery(true)}
+            className="w-10 h-10 md:w-12 md:h-12 flex items-center justify-center rounded-xl md:rounded-2xl bg-bg-secondary border border-border-primary hover:border-accent transition-all duration-300 group"
+            title="Gallery"
+          >
+            <Layers size={18} className="text-accent" />
+          </button>
+          <button
+            onClick={() => setIsDarkMode(!isDarkMode)}
+            className="w-10 h-10 md:w-12 md:h-12 flex items-center justify-center rounded-xl md:rounded-2xl bg-bg-secondary border border-border-primary hover:border-accent transition-all duration-300 group"
+          >
+            {isDarkMode ? <Sun size={18} className="text-accent group-hover:rotate-45 transition-transform" /> : <Moon size={18} className="text-accent group-hover:-rotate-12 transition-transform" />}
+          </button>
         </div>
       </nav>
 
@@ -809,7 +809,14 @@ export default function App() {
         )}
       </AnimatePresence>
 
-            <main className="w-full max-w-screen-2xl mx-auto p-4 sm:p-6 lg:p-8 space-y-6 lg:space-y-8 pb-[calc(100px+env(safe-area-inset-bottom))] md:pb-12 transition-all duration-300">
+      {/* Main content with dynamic bottom padding to account for mobile navigation */}
+      <main 
+        ref={mainRef}
+        className="w-full max-w-screen-2xl mx-auto p-4 sm:p-6 lg:p-8 space-y-6 lg:space-y-8 transition-all duration-300 flex-1"
+        style={{ 
+          paddingBottom: `calc(${bottomNavHeight}px + 1rem + env(safe-area-inset-bottom))` 
+        }}
+      >
         <AnimatePresence mode="wait">
           {showSettings && (
             <motion.div
@@ -850,7 +857,6 @@ export default function App() {
             </motion.div>
           )}
         </AnimatePresence>
-
 
         <AnimatePresence mode="wait">
           {showLogs && (
@@ -1222,8 +1228,6 @@ export default function App() {
             </motion.div>
           )}
         </AnimatePresence>
-
-        {/* Settings Modal - Removed (Moved to top) */}
 
         {/* Library: Presets at Bottom */}
         <AnimatePresence>
