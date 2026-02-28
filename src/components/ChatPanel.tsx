@@ -2,11 +2,11 @@ import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Send, Paperclip, X, User, Bot, Loader2, FileText, Image as ImageIcon, Camera } from 'lucide-react';
 import Markdown from 'react-markdown';
-import { GoogleGenAI } from "@google/genai";
 import { CameraModal } from './CameraModal';
+import { VectorAssistantApi, ChatMessage } from '../services/vectorAssistantService';
 
 interface Message {
-  role: 'user' | 'model';
+  role: 'user' | 'assistant';
   text: string;
   files?: { name: string; type: string; data: string }[];
 }
@@ -19,7 +19,7 @@ interface ChatPanelProps {
 
 export const ChatPanel: React.FC<ChatPanelProps> = React.memo(({ onClose, addLog, apiKey }) => {
   const [messages, setMessages] = useState<Message[]>([
-    { role: 'model', text: 'VΞCTOR AI Assistant online. How can I assist with your visual synthesis today?' }
+    { role: 'assistant', text: 'VΞCTOR Assistant online. Powered by GPT-OSS 120B. How can I assist with your visual synthesis today?' }
   ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -29,7 +29,6 @@ export const ChatPanel: React.FC<ChatPanelProps> = React.memo(({ onClose, addLog
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    // Scroll to bottom when messages change or loading state changes
     if (scrollRef.current) {
       setTimeout(() => {
         scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
@@ -59,8 +58,9 @@ export const ChatPanel: React.FC<ChatPanelProps> = React.memo(({ onClose, addLog
 
   const handleSend = async () => {
     if (!input.trim() && attachedFiles.length === 0) return;
+    
     if (!apiKey) {
-      addLog('Gemini API key required for chat.', 'error');
+      addLog('BytePlus API key required for Vector Assistant. Please add it in Settings (Node_02).', 'error');
       return;
     }
 
@@ -76,38 +76,38 @@ export const ChatPanel: React.FC<ChatPanelProps> = React.memo(({ onClose, addLog
     setIsLoading(true);
 
     try {
-      const ai = new GoogleGenAI({ apiKey });
-      
-      // Filter out the initial model greeting if it exists, as the API expects user turn first
-      const history = messages.filter((_, index) => index > 0 || messages[0].role !== 'model');
-      
-      const model = ai.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: history.concat(userMessage).map(m => ({
-          role: m.role,
-          parts: [
-            { text: m.text },
-            ...(m.files || []).map(f => ({
-              inlineData: {
-                mimeType: f.type,
-                data: f.data.split(',')[1]
-              }
-            }))
-          ]
-        })),
-        config: {
-          systemInstruction: "You are VΞCTOR AI, a specialized assistant for a high-end vector design and image synthesis platform. You are technical, precise, and helpful. You speak in a concise, terminal-like manner. Every letter is geometry. Every style is a rule system. You can analyze images, suggest design styles, and help users with the platform's features. When discussing Stability AI, mention that it is running on the KSD V1 Engine for deterministic vector output."
+      // Prepare messages for the API
+      const apiMessages: ChatMessage[] = [
+        { 
+          role: 'system', 
+          content: "You are VΞCTOR Assistant, a specialized artificial intelligence assistant for a high-end vector design and image synthesis platform. You are powered by the GPT-OSS 120B model via BytePlus ARK. You are technical, precise, and helpful. You speak in a concise, terminal-like manner. Every letter is geometry. Every style is a rule system. You can analyze design requests, suggest styles, and help users with the platform's features."
         }
-      });
+      ];
 
-      const response = await model;
-      const text = response.text;
+      // Add history (limit to last 10 messages for context)
+      const history = messages.slice(-10).map(m => ({
+        role: m.role === 'assistant' ? 'assistant' : 'user',
+        content: m.text
+      }));
+
+      apiMessages.push(...(history as ChatMessage[]));
       
-      setMessages(prev => [...prev, { role: 'model', text: text || 'I encountered an issue processing that request.' }]);
+      // Add current user message
+      let userContent = userMessage.text;
+      if (userMessage.files && userMessage.files.length > 0) {
+        userContent += "\n\n[User attached files: " + userMessage.files.map(f => f.name).join(', ') + "]";
+        userContent += "\n(Note: Multimodal file analysis is handled by the Gemini node, please use the Image Analyzer for deep visual inspection.)";
+      }
+      
+      apiMessages.push({ role: 'user', content: userContent });
+
+      const responseText = await VectorAssistantApi.chat(apiMessages, apiKey);
+      
+      setMessages(prev => [...prev, { role: 'assistant', text: responseText || 'I encountered an issue processing that request.' }]);
     } catch (error: any) {
       console.error('Chat error:', error);
       addLog(`Chat failed: ${error.message}`, 'error');
-      setMessages(prev => [...prev, { role: 'model', text: `Error: ${error.message}` }]);
+      setMessages(prev => [...prev, { role: 'assistant', text: `Error: ${error.message}` }]);
     } finally {
       setIsLoading(false);
     }
@@ -123,7 +123,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = React.memo(({ onClose, addLog
           </div>
           <div>
             <h2 className="text-sm font-bold uppercase tracking-[0.2em]">VΞCTOR Assistant</h2>
-            <p className="text-[8px] font-mono opacity-40 uppercase tracking-widest">Neural Synthesis Interface</p>
+            <p className="text-[8px] font-mono opacity-40 uppercase tracking-widest">GPT-OSS 120B Neural Interface</p>
           </div>
         </div>
         <button onClick={onClose} className="p-2 hover:bg-bg-primary rounded-full transition-colors">

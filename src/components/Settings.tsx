@@ -28,7 +28,6 @@ export const Settings: React.FC<SettingsProps> = ({
   userPresets,
   setUserPresets,
 }) => {
-  const [hfApiKey, setHfApiKey] = useState('');
   const [arkApiKey, setArkApiKey] = useState('');
   const [isTestingKey, setIsTestingKey] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -57,7 +56,6 @@ export const Settings: React.FC<SettingsProps> = ({
       version: '1.0',
       timestamp: new Date().toISOString(),
       settings: {
-        hfApiKey,
         arkApiKey,
         geminiKeys,
         activeKeyIndex
@@ -89,7 +87,6 @@ export const Settings: React.FC<SettingsProps> = ({
         
         // Restore Settings
         if (data.settings) {
-          if (data.settings.hfApiKey) setHfApiKey(data.settings.hfApiKey);
           if (data.settings.arkApiKey) setArkApiKey(data.settings.arkApiKey);
           if (data.settings.geminiKeys) setGeminiKeys(data.settings.geminiKeys);
           if (data.settings.activeKeyIndex !== undefined) setActiveKeyIndex(data.settings.activeKeyIndex);
@@ -115,17 +112,12 @@ export const Settings: React.FC<SettingsProps> = ({
   };
 
   useEffect(() => {
-    const storedHfKey = localStorage.getItem('hfApiKey');
-    if (storedHfKey) setHfApiKey(storedHfKey);
-
     const storedArkKey = localStorage.getItem('arkApiKey');
     if (storedArkKey) setArkApiKey(storedArkKey);
   }, []);
 
   const handleSave = () => {
     let savedKeys = [];
-    if (hfApiKey) { localStorage.setItem('hfApiKey', hfApiKey); savedKeys.push('Hugging Face'); }
-    else localStorage.removeItem('hfApiKey');
 
     if (arkApiKey) { localStorage.setItem('arkApiKey', arkApiKey); savedKeys.push('BytePlus'); }
     else localStorage.removeItem('arkApiKey');
@@ -139,9 +131,7 @@ export const Settings: React.FC<SettingsProps> = ({
   };
 
   const handleClear = () => {
-    localStorage.removeItem('hfApiKey');
     localStorage.removeItem('arkApiKey');
-    setHfApiKey('');
     setArkApiKey('');
     addLog('API keys cleared.', 'info');
   };
@@ -264,26 +254,10 @@ export const Settings: React.FC<SettingsProps> = ({
               </div>
             </div>
 
-            {/* Node 2: Hugging Face */}
+            {/* Node 2: BytePlus (Seedream) */}
             <div className="relative opacity-60 hover:opacity-100 transition-all duration-300">
               <div className="flex items-center justify-between mb-1">
-                <label className="text-[9px] font-mono uppercase tracking-widest text-accent/70">Node_02: Hugging Face (FLUX, SDXL, OpenJourney)</label>
-              </div>
-              <div className="flex gap-2">
-                <input
-                  type="password"
-                  value={hfApiKey}
-                  onChange={(e) => setHfApiKey(e.target.value)}
-                  placeholder="HF_KEY_REQUIRED..."
-                  className="flex-1 bg-black/60 border border-accent/10 rounded-lg p-2.5 text-xs font-mono text-accent focus:outline-none focus:border-accent/40 placeholder:text-accent/20"
-                />
-              </div>
-            </div>
-
-            {/* Node 3: BytePlus (Seedream) */}
-            <div className="relative opacity-60 hover:opacity-100 transition-all duration-300">
-              <div className="flex items-center justify-between mb-1">
-                <label className="text-[9px] font-mono uppercase tracking-widest text-accent/70">Node_03: BytePlus (Seedream 4.5)</label>
+                <label className="text-[9px] font-mono uppercase tracking-widest text-accent/70">Node_02: BytePlus (Seedream)</label>
               </div>
               <div className="flex gap-2">
                 <input
@@ -301,7 +275,7 @@ export const Settings: React.FC<SettingsProps> = ({
             <p className="text-[9px] font-mono text-accent/40 leading-relaxed uppercase tracking-tighter">
               SYSTEM_NOTE: Synthesis Engine Nodes established. 
               Node_01 handles primary neural processing. 
-              Nodes 02-03 handle external specialized generation.
+              Node_02 handles external specialized generation.
             </p>
           </div>
         </div>

@@ -5,6 +5,8 @@
 
 import React, { useState, useRef, useEffect, Suspense, lazy } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import { StatusBar, Style } from '@capacitor/status-bar';
+import { Capacitor } from '@capacitor/core';
 import { 
   Upload, 
   Type as TypeIcon, 
@@ -47,6 +49,7 @@ import { ChatPanel } from './components/ChatPanel';
 import { CameraModal } from './components/CameraModal';
 import { PresetPanel } from './components/PresetPanel';
 import { LOGO_PRESETS } from './modules/LogoModule';
+import { PullToRefresh } from './components/PullToRefresh';
 
 const SettingsPanel = lazy(() => import('./components/Settings').then(m => ({ default: m.Settings })));
 const PresetPreview = lazy(() => import('./components/PresetPreview').then(m => ({ default: m.PresetPreview })));
@@ -64,12 +67,9 @@ interface LogEntry {
 
 const MODEL_OPTIONS: { id: ImageModel; label: string; icon: React.ElementType; color: string }[] = [
   { id: 'gemini', label: modelRegistry['gemini'].label, icon: Sparkles, color: 'text-blue-400' },
-  { id: 'flux-dev', label: modelRegistry['flux-dev'].label, icon: Cpu, color: 'text-purple-400' },
-  { id: 'flux-schnell', label: modelRegistry['flux-schnell'].label, icon: Zap, color: 'text-yellow-300' },
-  { id: 'sdxl', label: modelRegistry['sdxl'].label, icon: Layers, color: 'text-orange-400' },
-  { id: 'openjourney', label: modelRegistry['openjourney'].label, icon: MessageCircle, color: 'text-cyan-400' },
-  { id: 'hidream', label: modelRegistry['hidream'].label, icon: Cloud, color: 'text-indigo-400' },
-  { id: 'seedream', label: modelRegistry['seedream'].label, icon: Zap, color: 'text-yellow-500' },
+  { id: 'seedream-5.0', label: modelRegistry['seedream-5.0'].label, icon: Zap, color: 'text-yellow-500' },
+  { id: 'seedream-4.5', label: modelRegistry['seedream-4.5'].label, icon: Zap, color: 'text-yellow-500' },
+  { id: 'seedream-4.0', label: modelRegistry['seedream-4.0'].label, icon: Zap, color: 'text-yellow-500' },
 ];
 
 export default function App() {
@@ -82,7 +82,7 @@ export default function App() {
 
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [resultImage, setResultImage] = useState<string | null>(null);
+  const [resultImage, setResultImage] = useState<string | string[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isDarkMode, setIsDarkMode] = useState(true);
   const [showSettings, setShowSettings] = useState(false);
@@ -95,6 +95,7 @@ export default function App() {
   const [isStrictModeEnabled, setIsStrictModeEnabled] = useState(false);
   const [isIllustrated, setIsIllustrated] = useState(false);
   const [isSubjectOnly, setIsSubjectOnly] = useState(false);
+  const [isBatchMode, setIsBatchMode] = useState(false);
   const [isHoldingCompare, setIsHoldingCompare] = useState(false);
   const [userPresets, setUserPresets] = useState<Preset[]>(() => {
     const saved = localStorage.getItem('userPresets');
@@ -154,6 +155,10 @@ export default function App() {
     return key || process.env.GEMINI_API_KEY;
   };
 
+  const getArkApiKey = () => {
+    return localStorage.getItem('arkApiKey') || '';
+  };
+
   const switchToNextKey = () => {
     const nextIndex = (activeKeyIndex + 1) % geminiKeys.length;
     if (nextIndex === 0 && !geminiKeys[0]) {
@@ -173,6 +178,13 @@ export default function App() {
     }
     return true;
   };
+
+  useEffect(() => {
+    if (Capacitor.isNativePlatform()) {
+      StatusBar.setOverlaysWebView({ overlay: true }).catch(console.error);
+      StatusBar.setStyle({ style: isDarkMode ? Style.Dark : Style.Light }).catch(console.error);
+    }
+  }, [isDarkMode]);
 
   useEffect(() => {
     localStorage.setItem('userPresets', JSON.stringify(userPresets));
@@ -283,7 +295,7 @@ export default function App() {
     }
 
     if (tab === 'core lettering') {
-      setSelectedModel('seedream');
+      setSelectedModel('seedream-4.5');
       addLog(`Engine optimized for: Typography Art`, 'info');
       
       if (TYPOGRAPHY_PRESETS.length > 0 && TYPOGRAPHY_PRESETS[0].presets.length > 0) {
@@ -306,8 +318,8 @@ export default function App() {
   useEffect(() => {
     if (activeTab === 'vectorize' && selectedModel !== 'gemini') {
       setSelectedModel('gemini');
-    } else if (activeTab === 'core lettering' && selectedModel !== 'seedream') {
-      setSelectedModel('seedream');
+    } else if (activeTab === 'core lettering' && !selectedModel.startsWith('seedream')) {
+      setSelectedModel('seedream-4.5');
     } else if (activeTab === 'image analyzer' && selectedModel !== 'gemini') {
       setSelectedModel('gemini');
     }
@@ -478,7 +490,7 @@ export default function App() {
       if (selectedModel !== 'gemini' && !skipTurbo) {
         try {
           const engineName = MODEL_OPTIONS.find(m => m.id === selectedModel)?.label || selectedModel;
-          if (selectedModel === 'seedream') {
+          if (selectedModel.startsWith('seedream')) {
             addLog(`Using ${engineName} Engine [ARK Optimized]...`, 'info');
           } else {
             addLog(`Using ${engineName} Engine...`, 'info');
@@ -502,7 +514,22 @@ export default function App() {
           }
 
           const enhancedPrompt = activeTab === 'core lettering' ? basePrompt : `${basePrompt}. Style: ${presetToUse.basePrompt}`;
-          result = await generateImage(enhancedPrompt, selectedModel, presetToUse.basePrompt, finalNegativePrompt);
+          
+          if (isBatchMode) {
+            addLog('Batch Mode Active: Initiating 2x2 parallel synthesis...', 'process');
+            const batchPromises = Array(4).fill(null).map((_, i) => {
+              // Add slight variation to prompt for each batch item to get different results
+              const variationPrompt = `${enhancedPrompt} (variation ${i + 1})`;
+              return generateImage(variationPrompt, selectedModel, presetToUse.basePrompt, finalNegativePrompt, uploadedImage || undefined);
+            });
+            const batchResults = await Promise.all(batchPromises);
+            setResultImage(batchResults);
+            addLog('[PROCESS END] Batch synthesis complete. 4 variations rendered.', 'success');
+            setIsGenerating(false);
+            return;
+          } else {
+            result = await generateImage(enhancedPrompt, selectedModel, presetToUse.basePrompt, finalNegativePrompt, uploadedImage || undefined);
+          }
         } catch (turboError: any) {
           console.error(`${selectedModel} failed`, turboError);
           addLog(`External Engine unavailable: ${turboError.message}`, 'error');
@@ -589,12 +616,23 @@ export default function App() {
 
   const saveToGallery = () => {
     if (!resultImage) return;
-    if (galleryImages.includes(resultImage)) {
-      addLog('Image already in gallery', 'info');
-      return;
+    
+    if (Array.isArray(resultImage)) {
+      const newImages = resultImage.filter(img => !galleryImages.includes(img));
+      if (newImages.length === 0) {
+        addLog('All variations already in gallery', 'info');
+        return;
+      }
+      setGalleryImages(prev => [...newImages, ...prev]);
+      addLog(`${newImages.length} variations saved to gallery`, 'success');
+    } else {
+      if (galleryImages.includes(resultImage)) {
+        addLog('Image already in gallery', 'info');
+        return;
+      }
+      setGalleryImages(prev => [resultImage, ...prev]);
+      addLog('Image saved to gallery', 'success');
     }
-    setGalleryImages(prev => [resultImage, ...prev]);
-    addLog('Image saved to gallery', 'success');
   };
 
   const deleteFromGallery = (imageToDelete: string) => {
@@ -604,10 +642,27 @@ export default function App() {
 
   const downloadImage = () => {
     if (!resultImage) return;
-    const link = document.createElement('a');
-    link.href = resultImage;
-    link.download = `vector-${Date.now()}.png`;
-    link.click();
+    if (Array.isArray(resultImage)) {
+      resultImage.forEach((img, i) => {
+        const link = document.createElement('a');
+        link.href = img;
+        link.download = `vector-variation-${i + 1}-${Date.now()}.png`;
+        link.click();
+      });
+      addLog('Downloading all variations...', 'info');
+    } else {
+      const link = document.createElement('a');
+      link.href = resultImage;
+      link.download = `vector-${Date.now()}.png`;
+      link.click();
+    }
+  };
+
+  const handleAppRefresh = async () => {
+    addLog('System Refresh Initiated...', 'process');
+    // Give it a moment to show the animation
+    await new Promise(resolve => setTimeout(resolve, 800));
+    window.location.reload();
   };
 
   let currentCategories: readonly PresetCategory[] = [];
@@ -622,100 +677,104 @@ export default function App() {
   }
 
   return (
-    <div 
-      className="min-h-dvh flex flex-col overflow-x-hidden bg-bg-primary text-text-primary font-sans selection:bg-accent selection:text-bg-primary transition-colors duration-500 relative"
-      onDrop={handleFileDrop}
-      onDragEnter={handleDragEnter}
-      onDragLeave={handleDragLeave}
-      onDragOver={handleDragOver}
-    >
-      {lightningBolts.map(bolt => (
-        <LightningBolt 
-          key={bolt.id} 
-          id={bolt.id} 
-          x={bolt.x} 
-          y={bolt.y} 
-          color={bolt.color} 
-          coreColor={bolt.coreColor}
-          initialAngle={bolt.initialAngle}
-          onRemove={(idToRemove) => setLightningBolts(prev => prev.filter(b => b.id !== idToRemove))} 
-        />
-      ))}
-      <AnimatePresence>
-        {isDragging && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="absolute inset-0 z-[100] bg-accent/20 backdrop-blur-sm flex items-center justify-center pointer-events-none"
-          >
-            <div className="text-center text-accent font-bold uppercase tracking-[0.4em] p-8 bg-bg-primary/80 rounded-2xl border-2 border-dashed border-accent">
-              Drop Image to Synthesize
+    <PullToRefresh onRefresh={handleAppRefresh}>
+      <div 
+        className="min-h-dvh flex flex-col overflow-x-hidden bg-bg-primary text-text-primary font-sans selection:bg-accent selection:text-bg-primary transition-colors duration-500 relative"
+        onDrop={handleFileDrop}
+        onDragEnter={handleDragEnter}
+        onDragLeave={handleDragLeave}
+        onDragOver={handleDragOver}
+      >
+        {lightningBolts.map(bolt => (
+          <LightningBolt 
+            key={bolt.id} 
+            id={bolt.id} 
+            x={bolt.x} 
+            y={bolt.y} 
+            color={bolt.color} 
+            coreColor={bolt.coreColor}
+            initialAngle={bolt.initialAngle}
+            onRemove={(idToRemove) => setLightningBolts(prev => prev.filter(b => b.id !== idToRemove))} 
+          />
+        ))}
+        <AnimatePresence>
+          {isDragging && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 z-[100] bg-accent/20 backdrop-blur-sm flex items-center justify-center pointer-events-none"
+            >
+              <div className="text-center text-accent font-bold uppercase tracking-[0.4em] p-8 bg-bg-primary/80 rounded-2xl border-2 border-dashed border-accent">
+                Drop Image to Synthesize
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+        {/* Navigation Bar */}
+        <nav 
+          style={{ paddingTop: 'env(safe-area-inset-top)' }}
+          className="sticky top-0 z-50 bg-bg-primary/80 backdrop-blur-xl border-b border-border-primary px-4 md:px-8 py-4 md:py-5 flex justify-between items-center transition-all"
+        >
+          <div className="flex items-center gap-3 md:gap-5">
+            <motion.div 
+              whileHover={{ scale: 1.1, rotate: 90 }}
+              className="w-10 h-10 md:w-12 md:h-12 bg-accent flex items-center justify-center shadow-xl shadow-accent/20"
+            >
+              <Zap className="text-bg-primary w-6 h-6 md:w-7 md:h-7 fill-current" />
+            </motion.div>
+            <div>
+              <h1 className="text-xl md:text-2xl font-bold tracking-tighter uppercase leading-none">VΞCTOR</h1>
+              <p className="text-[8px] md:text-[10px] font-mono opacity-40 uppercase tracking-[0.2em] mt-1 md:mt-1.5">Monolithic Design System</p>
             </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-      {/* Navigation Bar */}
-      <nav className="sticky top-0 z-50 bg-bg-primary/80 backdrop-blur-xl border-b border-border-primary px-4 md:px-8 py-4 md:py-5 flex justify-between items-center transition-all">
-        <div className="flex items-center gap-3 md:gap-5">
-          <motion.div 
-            whileHover={{ scale: 1.1, rotate: 90 }}
-            className="w-10 h-10 md:w-12 md:h-12 bg-accent flex items-center justify-center shadow-xl shadow-accent/20"
-          >
-            <Zap className="text-bg-primary w-6 h-6 md:w-7 md:h-7 fill-current" />
-          </motion.div>
-          <div>
-            <h1 className="text-xl md:text-2xl font-bold tracking-tighter uppercase leading-none">VΞCTOR</h1>
-            <p className="text-[8px] md:text-[10px] font-mono opacity-40 uppercase tracking-[0.2em] mt-1 md:mt-1.5">Monolithic Design System</p>
           </div>
-        </div>
 
-        <div className="flex items-center gap-4 md:gap-8">
-          <div className="hidden md:flex gap-2 bg-bg-secondary p-1.5 border border-border-primary">
-            {(['vectorize', 'core lettering', 'logo design', 'image analyzer', 'chat'] as Tab[]).map((tab) => (
-              <button
-                key={tab}
-                onClick={() => handleTabChange(tab)}
-                className={`px-6 lg:px-8 py-2.5 text-[10px] lg:text-[11px] font-bold uppercase tracking-widest transition-all duration-300 ${
-                  activeTab === tab 
-                    ? 'bg-accent text-bg-primary shadow-lg shadow-accent/10' 
-                    : 'text-text-secondary hover:text-text-primary hover:bg-bg-primary'
-                }`}
-              >
-                {tab === 'image analyzer' ? 'analyzer' : tab}
-              </button>
-            ))}
+          <div className="flex items-center gap-4 md:gap-8">
+            <div className="hidden md:flex gap-2 bg-bg-secondary p-1.5 border border-border-primary">
+              {(['vectorize', 'core lettering', 'logo design', 'image analyzer', 'chat'] as Tab[]).map((tab) => (
+                <button
+                  key={tab}
+                  onClick={() => handleTabChange(tab)}
+                  className={`px-6 lg:px-8 py-2.5 text-[10px] lg:text-[11px] font-bold uppercase tracking-widest transition-all duration-300 ${
+                    activeTab === tab 
+                      ? 'bg-accent text-bg-primary shadow-lg shadow-accent/10' 
+                      : 'text-text-secondary hover:text-text-primary hover:bg-bg-primary'
+                  }`}
+                >
+                  {tab === 'image analyzer' ? 'analyzer' : tab}
+                </button>
+              ))}
+            </div>
+            <button
+              onClick={() => setShowSettings(true)}
+              className="w-10 h-10 md:w-12 md:h-12 flex items-center justify-center rounded-xl md:rounded-2xl bg-bg-secondary border border-border-primary hover:border-accent transition-all duration-300 group"
+            >
+              <Settings size={18} className="text-accent group-hover:rotate-90 transition-transform" />
+            </button>
+            <button
+              onClick={() => setShowLogs(!showLogs)}
+              className={`w-10 h-10 md:w-12 md:h-12 flex items-center justify-center border transition-all duration-300 group ${
+                showLogs ? 'bg-accent border-accent' : 'bg-bg-secondary border-border-primary hover:border-accent'
+              }`}
+              title="System Logs"
+            >
+              <TerminalIcon size={18} className={`${showLogs ? 'text-bg-primary' : 'text-accent'} transition-colors`} />
+            </button>
+            <button
+              onClick={() => setShowGallery(true)}
+              className="w-10 h-10 md:w-12 md:h-12 flex items-center justify-center rounded-xl md:rounded-2xl bg-bg-secondary border border-border-primary hover:border-accent transition-all duration-300 group"
+              title="Gallery"
+            >
+              <Layers size={18} className="text-accent" />
+            </button>
+            <button
+              onClick={() => setIsDarkMode(!isDarkMode)}
+              className="w-10 h-10 md:w-12 md:h-12 flex items-center justify-center rounded-xl md:rounded-2xl bg-bg-secondary border border-border-primary hover:border-accent transition-all duration-300 group"
+            >
+              {isDarkMode ? <Sun size={18} className="text-accent group-hover:rotate-45 transition-transform" /> : <Moon size={18} className="text-accent group-hover:-rotate-12 transition-transform" />}
+            </button>
           </div>
-          <button
-            onClick={() => setShowSettings(true)}
-            className="w-10 h-10 md:w-12 md:h-12 flex items-center justify-center rounded-xl md:rounded-2xl bg-bg-secondary border border-border-primary hover:border-accent transition-all duration-300 group"
-          >
-            <Settings size={18} className="text-accent group-hover:rotate-90 transition-transform" />
-          </button>
-          <button
-            onClick={() => setShowLogs(!showLogs)}
-            className={`w-10 h-10 md:w-12 md:h-12 flex items-center justify-center border transition-all duration-300 group ${
-              showLogs ? 'bg-accent border-accent' : 'bg-bg-secondary border-border-primary hover:border-accent'
-            }`}
-            title="System Logs"
-          >
-            <TerminalIcon size={18} className={`${showLogs ? 'text-bg-primary' : 'text-accent'} transition-colors`} />
-          </button>
-          <button
-            onClick={() => setShowGallery(true)}
-            className="w-10 h-10 md:w-12 md:h-12 flex items-center justify-center rounded-xl md:rounded-2xl bg-bg-secondary border border-border-primary hover:border-accent transition-all duration-300 group"
-            title="Gallery"
-          >
-            <Layers size={18} className="text-accent" />
-          </button>
-          <button
-            onClick={() => setIsDarkMode(!isDarkMode)}
-            className="w-10 h-10 md:w-12 md:h-12 flex items-center justify-center rounded-xl md:rounded-2xl bg-bg-secondary border border-border-primary hover:border-accent transition-all duration-300 group"
-          >
-            {isDarkMode ? <Sun size={18} className="text-accent group-hover:rotate-45 transition-transform" /> : <Moon size={18} className="text-accent group-hover:-rotate-12 transition-transform" />}
-          </button>
-        </div>
-      </nav>
+        </nav>
 
       <AnimatePresence>
         {showColorPalette && (
@@ -889,7 +948,7 @@ export default function App() {
               <ChatPanel 
                 onClose={() => handleTabChange('vectorize')}
                 addLog={addLog}
-                apiKey={getActiveGeminiKey()}
+                apiKey={getArkApiKey()}
               />
             </motion.div>
           ) : (
@@ -938,10 +997,20 @@ export default function App() {
                       <button 
                         onClick={(e) => {
                           e.stopPropagation();
-                          const link = document.createElement('a');
-                          link.href = resultImage || uploadedImage!;
-                          link.download = resultImage ? `vector-${Date.now()}.png` : `reference-${Date.now()}.png`;
-                          link.click();
+                          if (Array.isArray(resultImage)) {
+                            resultImage.forEach((img, i) => {
+                              const link = document.createElement('a');
+                              link.href = img;
+                              link.download = `vector-variation-${i + 1}-${Date.now()}.png`;
+                              link.click();
+                            });
+                            addLog('Downloading all variations...', 'info');
+                          } else {
+                            const link = document.createElement('a');
+                            link.href = resultImage || uploadedImage!;
+                            link.download = resultImage ? `vector-${Date.now()}.png` : `reference-${Date.now()}.png`;
+                            link.click();
+                          }
                         }}
                         className="w-8 h-8 md:w-10 md:h-10 bg-black/80 backdrop-blur-md border border-white/20 rounded-lg flex items-center justify-center text-white hover:bg-accent hover:text-black transition-all shadow-lg"
                         title="Download Image"
@@ -1000,34 +1069,79 @@ export default function App() {
                       key="result"
                       initial={{ opacity: 0, scale: 0.95 }}
                       animate={{ opacity: 1, scale: 1 }}
-                      className="relative z-10 w-full h-full cursor-crosshair flex items-center justify-center"
-                      onMouseDown={() => uploadedImage && setIsHoldingCompare(true)}
+                      className="relative z-10 w-full h-full cursor-crosshair flex items-center justify-center p-4"
+                      onMouseDown={() => uploadedImage && !Array.isArray(resultImage) && setIsHoldingCompare(true)}
                       onMouseUp={() => setIsHoldingCompare(false)}
                       onMouseLeave={() => setIsHoldingCompare(false)}
-                      onTouchStart={() => uploadedImage && setIsHoldingCompare(true)}
+                      onTouchStart={() => uploadedImage && !Array.isArray(resultImage) && setIsHoldingCompare(true)}
                       onTouchEnd={() => setIsHoldingCompare(false)}
                     >
-                      <img 
-                        src={isHoldingCompare && uploadedImage ? uploadedImage : resultImage} 
-                        alt="Result" 
-                        className="max-w-full max-h-full h-auto object-contain bg-black/5 pointer-events-none select-none" 
-                      />
-                      
-                      {/* Comparison Indicator */}
-                      {uploadedImage && (
-                        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-full text-[10px] font-mono text-white/80 uppercase tracking-widest pointer-events-none border border-white/10">
-                          {isHoldingCompare ? 'Original Reference' : 'Hold to Compare'}
+                      {Array.isArray(resultImage) ? (
+                        <div className="grid grid-cols-2 gap-2 w-full h-full max-h-[80vh]">
+                          {resultImage.map((img, idx) => (
+                            <div key={idx} className="relative group/item overflow-hidden rounded-xl border border-white/10 bg-black/20">
+                              <img 
+                                src={img} 
+                                alt={`Variation ${idx + 1}`} 
+                                className="w-full h-full object-contain" 
+                              />
+                              <div className="absolute inset-0 bg-black/60 opacity-0 group-hover/item:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                                <button 
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setResultImage(img);
+                                    addLog(`Variation ${idx + 1} selected as primary.`, 'success');
+                                  }}
+                                  className="p-2 bg-accent text-bg-primary rounded-lg hover:scale-110 transition-transform"
+                                  title="Select as Primary"
+                                >
+                                  <Maximize2 size={16} />
+                                </button>
+                                <button 
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    const link = document.createElement('a');
+                                    link.href = img;
+                                    link.download = `vector-variation-${idx + 1}-${Date.now()}.png`;
+                                    link.click();
+                                  }}
+                                  className="p-2 bg-white/10 text-white rounded-lg hover:bg-white/20 transition-colors"
+                                  title="Download Variation"
+                                >
+                                  <Download size={16} />
+                                </button>
+                              </div>
+                              <div className="absolute top-2 left-2 bg-black/60 backdrop-blur-md px-2 py-0.5 rounded text-[8px] font-mono text-white/60 uppercase tracking-widest border border-white/10">
+                                Var_{idx + 1}
+                              </div>
+                            </div>
+                          ))}
                         </div>
-                      )}
+                      ) : (
+                        <>
+                          <img 
+                            src={isHoldingCompare && uploadedImage ? uploadedImage : resultImage} 
+                            alt="Result" 
+                            className="max-w-full max-h-full h-auto object-contain bg-black/5 pointer-events-none select-none" 
+                          />
+                          
+                          {/* Comparison Indicator */}
+                          {uploadedImage && (
+                            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-full text-[10px] font-mono text-white/80 uppercase tracking-widest pointer-events-none border border-white/10">
+                              {isHoldingCompare ? 'Original Reference' : 'Hold to Compare'}
+                            </div>
+                          )}
 
-                      <div className={`absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-transparent transition-opacity duration-700 flex flex-col justify-end p-8 md:p-12 backdrop-blur-[2px] pointer-events-none ${isHoldingCompare ? 'opacity-0' : 'opacity-0 group-hover/viewport:opacity-100'}`}>
-                        <div className="space-y-2">
-                          <p className="text-[10px] font-mono text-accent uppercase tracking-[0.4em] mb-2">Synthesis Complete</p>
-                          <h3 className="text-2xl md:text-4xl font-bold text-white uppercase tracking-tighter italic font-serif">
-                            {selectedPreset?.name || 'Custom Construction'}
-                          </h3>
-                        </div>
-                      </div>
+                          <div className={`absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-transparent transition-opacity duration-700 flex flex-col justify-end p-8 md:p-12 backdrop-blur-[2px] pointer-events-none ${isHoldingCompare ? 'opacity-0' : 'opacity-0 group-hover/viewport:opacity-100'}`}>
+                            <div className="space-y-2">
+                              <p className="text-[10px] font-mono text-accent uppercase tracking-[0.4em] mb-2">Synthesis Complete</p>
+                              <h3 className="text-2xl md:text-4xl font-bold text-white uppercase tracking-tighter italic font-serif">
+                                {selectedPreset?.name || 'Custom Construction'}
+                              </h3>
+                            </div>
+                          </div>
+                        </>
+                      )}
                     </motion.div>
                   ) : (
                     <motion.div 
@@ -1135,6 +1249,21 @@ export default function App() {
                     </button>
                     <span className="text-[8px] font-bold uppercase tracking-widest opacity-60">Subject</span>
                   </div>
+
+                  {/* Batch Mode Toggle */}
+                  <div className="flex items-center gap-2">
+                    <button 
+                      onClick={() => setIsBatchMode(!isBatchMode)}
+                      className={`w-8 h-4 rounded-full relative transition-all duration-300 ${isBatchMode ? 'bg-orange-500' : 'bg-bg-secondary border border-border-primary'}`}
+                      title="2x2 Batch Synthesis"
+                    >
+                      <motion.div 
+                        animate={{ x: isBatchMode ? 16 : 2 }}
+                        className={`absolute top-0.5 w-2.5 h-2.5 rounded-full ${isBatchMode ? 'bg-bg-primary' : 'bg-text-secondary'}`}
+                      />
+                    </button>
+                    <span className="text-[8px] font-bold uppercase tracking-widest opacity-60">Batch</span>
+                  </div>
                 </div>
 
                 <motion.div 
@@ -1193,7 +1322,7 @@ export default function App() {
                           {/* Tooltip */}
                           <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-black/80 backdrop-blur-md text-white text-[9px] font-bold uppercase tracking-widest rounded-lg opacity-0 group-hover/model:opacity-100 transition-opacity pointer-events-none whitespace-nowrap border border-white/10 shadow-xl">
                             {model.label}
-                            {model.id === 'seedream' && <span className="block text-[7px] text-accent mt-0.5">ARK ENGINE</span>}
+                            {model.id.startsWith('seedream') && <span className="block text-[7px] text-accent mt-0.5">ARK ENGINE</span>}
                           </div>
                         </button>
                       ))}
@@ -1297,6 +1426,7 @@ export default function App() {
           addLog('Visual captured via camera.', 'success');
         }}
       />
-    </div>
+      </div>
+    </PullToRefresh>
   );
 }

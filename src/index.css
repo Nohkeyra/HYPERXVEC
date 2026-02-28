@@ -63,11 +63,13 @@
 
   html, body, #root {
     height: 100%;
-    /* Handle safe areas for mobile devices */
-    padding-top: env(safe-area-inset-top);
-    padding-bottom: env(safe-area-inset-bottom);
-    padding-left: env(safe-area-inset-left);
-    padding-right: env(safe-area-inset-right);
+    margin: 0;
+    padding: 0;
+  }
+
+  /* Let components handle safe areas for more precise control (e.g. headers/footers) */
+  #root {
+    padding: 0;
   }
 
   body {

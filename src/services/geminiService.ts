@@ -1,15 +1,50 @@
-import { GoogleGenAI, GenerateContentResponse } from "@google/genai";
+import { Capacitor, CapacitorHttp } from '@capacitor/core';
 import { Preset } from '../presets';
 import { compressImage } from './imageUtils';
 
 const subjectCache: Record<string, string> = {}; // Cache for image subject descriptions
 
-function getAi(apiKeyOverride?: string) {
+async function geminiRestCall(model: string, payload: any, apiKeyOverride?: string) {
   const apiKey = apiKeyOverride || process.env.GEMINI_API_KEY;
   if (!apiKey) {
     throw new Error('Gemini API key not found. Please add it in Settings.');
   }
-  return new GoogleGenAI({ apiKey });
+
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
+  const headers = {
+    'Content-Type': 'application/json',
+    'x-goog-api-key': apiKey,
+  };
+
+  try {
+    if (Capacitor.isNativePlatform()) {
+      const response = await CapacitorHttp.post({
+        url,
+        headers,
+        data: payload
+      });
+
+      if (response.status !== 200) {
+        throw new Error(`Gemini API error (${response.status}): ${JSON.stringify(response.data)}`);
+      }
+      return response.data;
+    } else {
+      const response = await fetch(`${url}?key=${apiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      if (!response.ok) {
+        const err = await response.text();
+        throw new Error(`Gemini API error (${response.status}): ${err}`);
+      }
+      return await response.json();
+    }
+  } catch (error: any) {
+    console.error("Gemini REST Call Error:", error);
+    throw error;
+  }
 }
 
 function base64ToGenerativePart(base64: string, mimeType: string) {
@@ -31,15 +66,13 @@ export async function generateVisual(
   apiKey?: string,
   negativePrompt?: string
 ): Promise<string> {
-  // Use gemini-3.1-flash-image-preview for better quality and to avoid 2.5 quota limits
   const model = "gemini-3.1-flash-image-preview";
-
-  // Technical and high-fidelity modifiers for VΞCTOR aesthetic
   const artisticModifiers = "ultra-precise, technical illustration, sharp edges, high-fidelity vector, 8k resolution, professional graphic design, clean geometry";
   
   const negPrompt = negativePrompt || preset.negativePrompt;
   let fullPrompt = `${prompt}. ${preset.basePrompt}. ${artisticModifiers}. Negative prompt: ${negPrompt}, blurry, low resolution, messy, organic, soft edges`;
-  const contents: any = { parts: [{ text: fullPrompt }] };
+  
+  const parts: any[] = [{ text: fullPrompt }];
 
   if (base64Image && mimeType) {
     const imagePart = base64ToGenerativePart(base64Image, mimeType);
@@ -48,64 +81,35 @@ export async function generateVisual(
     if (strictMode) {
       const subject = await describeImageSubject(base64Image, mimeType, apiKey);
       fullPrompt = `${poseConstraint} STRICTLY RECREATE this subject: ${subject}. ${prompt}. ${preset.basePrompt}. ${artisticModifiers}`;
-      contents.parts = [imagePart, { text: fullPrompt }];
+      parts.unshift(imagePart);
+      parts[1].text = fullPrompt;
     } else {
       fullPrompt = `${poseConstraint} ${fullPrompt}`;
-      contents.parts = [imagePart, { text: fullPrompt }];
+      parts.unshift(imagePart);
+      parts[1].text = fullPrompt;
     }
   }
 
-  const ai = getAi(apiKey);
-  
-  const config: any = {
-    imageConfig: {
-      aspectRatio: preset.aspectRatio || '1:1',
-      imageSize: "1K" // Standardize on 1K for high quality
+  const payload = {
+    contents: [{ parts }],
+    generationConfig: {
+      imageConfig: {
+        aspectRatio: preset.aspectRatio || '1:1',
+        imageSize: "1K"
+      }
     }
   };
 
   try {
-    const response: GenerateContentResponse = await ai.models.generateContent({
-      model,
-      contents,
-      config,
-    });
+    const data = await geminiRestCall(model, payload, apiKey);
+    const imagePart = data.candidates?.[0]?.content?.parts?.find((p: any) => p.inlineData);
     
-    // Find the image part in the response
-    const imagePart = response.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
     if (imagePart && imagePart.inlineData) {
-      const compressed = await compressImage(`data:${imagePart.inlineData.mimeType || 'image/jpeg'};base64,${imagePart.inlineData.data}`, 0.85);
-      return compressed;
-    }
-
-    // Fallback search for image part
-    if (response.candidates?.[0]?.content?.parts) {
-      for (const part of response.candidates[0].content.parts) {
-        if (part.inlineData) {
-          const compressed = await compressImage(`data:${part.inlineData.mimeType || 'image/jpeg'};base64,${part.inlineData.data}`, 0.85);
-          return compressed;
-        }
-      }
+      return await compressImage(`data:${imagePart.inlineData.mimeType || 'image/jpeg'};base64,${imagePart.inlineData.data}`, 0.85);
     }
   } catch (error: any) {
     console.error("Gemini Image Generation Error:", error);
-    if (error.message?.includes("404") || error.message?.includes("not found")) {
-      // Fallback to flash if pro is not available
-      const fallbackModel = "gemini-2.5-flash-image";
-      const fallbackResponse = await ai.models.generateContent({
-        model: fallbackModel,
-        contents,
-        config: {
-          imageConfig: {
-            aspectRatio: preset.aspectRatio || '1:1'
-          }
-        }
-      });
-      const fallbackPart = fallbackResponse.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
-      if (fallbackPart && fallbackPart.inlineData) {
-        return await compressImage(`data:${fallbackPart.inlineData.mimeType || 'image/jpeg'};base64,${fallbackPart.inlineData.data}`, 0.8);
-      }
-    }
+    // Fallback logic could go here if needed
     throw error;
   }
 
@@ -113,18 +117,20 @@ export async function generateVisual(
 }
 
 export async function describeImageSubject(base64Image: string, mimeType: string, apiKey?: string): Promise<string> {
-  const cacheKey = base64Image.substring(0, 500); // Use a portion of the base64 as a key
-  if (subjectCache[cacheKey]) {
-    return subjectCache[cacheKey];
-  }
+  const cacheKey = base64Image.substring(0, 500);
+  if (subjectCache[cacheKey]) return subjectCache[cacheKey];
 
   const model = "gemini-3-flash-preview";
   const imagePart = base64ToGenerativePart(base64Image, mimeType);
-  const contents = { parts: [imagePart, { text: "Describe the main subject of this image in a concise phrase for an AI art prompt." }] };
-  const ai = getAi(apiKey);
-  const result = await ai.models.generateContent({ model, contents });
-  const description = result.text?.trim() || "subject";
-  subjectCache[cacheKey] = description; // Store in cache
+  const payload = {
+    contents: [{
+      parts: [imagePart, { text: "Describe the main subject of this image in a concise phrase for an AI art prompt." }]
+    }]
+  };
+
+  const data = await geminiRestCall(model, payload, apiKey);
+  const description = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || "subject";
+  subjectCache[cacheKey] = description;
   return description;
 }
 
@@ -132,11 +138,15 @@ export async function analyzeImage(base64Image: string, mimeType: string, apiKey
   const model = "gemini-3-flash-preview";
   const imagePart = base64ToGenerativePart(base64Image, mimeType);
   const prompt = `Analyze this image and generate an AI art prompt that captures its style. Focus on medium, texture, color, and composition. Output only the prompt itself.`;
-  const contents = { parts: [imagePart, { text: prompt }] };
-  const ai = getAi(apiKey);
-  const result = await ai.models.generateContent({ model, contents });
+  const payload = {
+    contents: [{
+      parts: [imagePart, { text: prompt }]
+    }]
+  };
+
+  const data = await geminiRestCall(model, payload, apiKey);
   return {
-    basePrompt: result.text?.trim() || "vector art",
+    basePrompt: data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || "vector art",
     aspectRatio: '1:1',
     negativePrompt: 'blurry, noisy, watermark, text, signature',
   };

@@ -1,10 +1,10 @@
-export type ImageModel = 'gemini' | 'hidream' | 'flux-dev' | 'flux-schnell' | 'sdxl' | 'openjourney' | 'seedream';
+export type ImageModel = 'gemini' | 'seedream-5.0' | 'seedream-4.5' | 'seedream-4.0';
 
 export interface ModelInfo {
   id: ImageModel;
   label: string;
-  provider: 'google_gemini' | 'huggingface_api' | 'byteplus';
-  modelId?: string; // For Hugging Face models
+  provider: 'google_gemini' | 'byteplus';
+  modelId?: string; // For BytePlus models
   requiresApiKey: boolean;
 }
 
@@ -15,45 +15,25 @@ export const modelRegistry: Record<ImageModel, ModelInfo> = {
     provider: 'google_gemini',
     requiresApiKey: true,
   },
-  'seedream': {
-    id: 'seedream',
-    label: 'Seedream 4.5 (ARK)',
+  'seedream-5.0': {
+    id: 'seedream-5.0',
+    label: 'Seedream 5.0 Lite',
     provider: 'byteplus',
+    modelId: 'seedream-5-0-250128',
     requiresApiKey: true,
   },
-  'hidream': {
-    id: 'hidream',
-    label: 'HiDream V2.1',
-    provider: 'huggingface_api',
-    modelId: 'digiplay/HiDream-v2',
+  'seedream-4.5': {
+    id: 'seedream-4.5',
+    label: 'Seedream 4.5',
+    provider: 'byteplus',
+    modelId: 'seedream-4-5-251128',
     requiresApiKey: true,
   },
-  'flux-dev': {
-    id: 'flux-dev',
-    label: 'FLUX.1 [dev]',
-    provider: 'huggingface_api',
-    modelId: 'black-forest-labs/FLUX.1-dev',
-    requiresApiKey: true,
-  },
-  'flux-schnell': {
-    id: 'flux-schnell',
-    label: 'FLUX.1 [schnell]',
-    provider: 'huggingface_api',
-    modelId: 'black-forest-labs/FLUX.1-schnell',
-    requiresApiKey: true,
-  },
-  'sdxl': {
-    id: 'sdxl',
-    label: 'SDXL Turbo',
-    provider: 'huggingface_api',
-    modelId: 'stabilityai/sdxl-turbo',
-    requiresApiKey: true,
-  },
-  'openjourney': {
-    id: 'openjourney',
-    label: 'OpenJourney V4',
-    provider: 'huggingface_api',
-    modelId: 'prompthero/openjourney',
+  'seedream-4.0': {
+    id: 'seedream-4.0',
+    label: 'Seedream 4.0',
+    provider: 'byteplus',
+    modelId: 'seedream-4-0-250828',
     requiresApiKey: true,
   },
 };
