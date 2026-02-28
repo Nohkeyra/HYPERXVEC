@@ -205,6 +205,65 @@ export const Settings: React.FC<SettingsProps> = ({
           </div>
         </div>
 
+        {/* Diagnostics Panel */}
+        <div className="space-y-4 bg-black/40 p-5 rounded-2xl border border-accent/20 relative overflow-hidden group">
+          <div className="flex items-center gap-2 mb-2">
+            <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
+            <h3 className="text-[10px] font-bold uppercase tracking-[0.3em] text-blue-400 flex items-center gap-2">
+              <AlertCircle size={12} /> System Diagnostics
+            </h3>
+          </div>
+          
+          <button 
+            onClick={async () => {
+              addLog('=== INITIATING SYSTEM DIAGNOSTICS ===', 'process');
+              
+              // 1. Environment Check
+              // @ts-ignore
+              addLog(`Environment: ${import.meta.env.MODE}`, 'info');
+              addLog(`Platform: ${/android|iphone|ipad|ipod/i.test(navigator.userAgent) ? 'Mobile' : 'Web'}`, 'info');
+              addLog(`User Agent: ${navigator.userAgent}`, 'info');
+              
+              // 2. API Key Check
+              const hasGemini = !!geminiKeys[0];
+              const hasArk = !!arkApiKey;
+              addLog(`Node_01 (Gemini): ${hasGemini ? 'CONFIGURED' : 'MISSING'}`, hasGemini ? 'success' : 'error');
+              addLog(`Node_02 (BytePlus): ${hasArk ? 'CONFIGURED' : 'MISSING'}`, hasArk ? 'success' : 'error');
+              
+              // 3. Storage Check
+              try {
+                const storageTest = 'test_write';
+                localStorage.setItem(storageTest, 'ok');
+                const readBack = localStorage.getItem(storageTest);
+                localStorage.removeItem(storageTest);
+                if (readBack === 'ok') {
+                  addLog('Local Storage: OPERATIONAL', 'success');
+                } else {
+                  throw new Error('Read mismatch');
+                }
+              } catch (e) {
+                addLog('Local Storage: FAILED', 'error');
+              }
+
+              // 4. Network Check
+              addLog('Testing Network Connectivity...', 'process');
+              try {
+                const start = Date.now();
+                await fetch('https://www.google.com/favicon.ico', { mode: 'no-cors' });
+                const ping = Date.now() - start;
+                addLog(`Network: ONLINE (Ping: ~${ping}ms)`, 'success');
+              } catch (e) {
+                addLog('Network: OFFLINE or BLOCKED', 'error');
+              }
+              
+              addLog('=== DIAGNOSTICS COMPLETE ===', 'success');
+            }}
+            className="w-full py-3 bg-blue-500/10 border border-blue-500/30 text-blue-400 rounded-xl hover:bg-blue-500/20 transition-all text-xs font-mono uppercase tracking-widest flex items-center justify-center gap-2"
+          >
+            <Terminal size={14} /> Run Full System Audit
+          </button>
+        </div>
+
         {/* Secret Panel: Gemini Multi-Key Management */}
         <div className="space-y-4 bg-black/40 p-5 rounded-2xl border border-accent/20 relative overflow-hidden group">
           <div className="absolute top-0 right-0 p-2 opacity-20 group-hover:opacity-100 transition-opacity">

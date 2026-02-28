@@ -28,12 +28,18 @@ export const BytePlusApi = {
         ? base64Image 
         : `data:image/png;base64,${base64Image}`;
       payload.image = formattedImage;
+      
+      // For image-to-image, some APIs might require different parameters or endpoints.
+      // Assuming standard OpenAI-compatible structure where 'image' is added to payload.
+      // If the model supports image input, this should be correct.
     }
 
     const headers = {
       "Content-Type": "application/json",
       "Authorization": `Bearer ${apiKey}`
     };
+
+    console.log(`[BytePlus] Sending request to ${modelId}...`);
 
     try {
       let data;
@@ -47,6 +53,7 @@ export const BytePlusApi = {
         });
 
         if (response.status !== 200) {
+          console.error(`[BytePlus] API Error Status: ${response.status}`, response.data);
           throw new Error(`BytePlus API error (${response.status}): ${JSON.stringify(response.data)}`);
         }
         data = response.data;
@@ -59,18 +66,21 @@ export const BytePlusApi = {
         });
 
         if (!response.ok) {
-          const err = await response.text();
-          throw new Error(`BytePlus API error (${response.status}): ${err}`);
+          const errText = await response.text();
+          console.error(`[BytePlus] API Error Status: ${response.status}`, errText);
+          throw new Error(`BytePlus API error (${response.status}): ${errText}`);
         }
         data = await response.json();
       }
       
+      console.log(`[BytePlus] Response received:`, data);
+
       if (data.data && data.data.length > 0 && data.data[0].url) {
         return data.data[0].url;
       } else if (data.error) {
         throw new Error(`BytePlus API error: ${data.error.message || JSON.stringify(data.error)}`);
       } else {
-        throw new Error("Invalid response format from BytePlus API");
+        throw new Error("Invalid response format from BytePlus API: Missing 'data[0].url'");
       }
     } catch (error: any) {
       console.error("BytePlus Generation Error:", error);

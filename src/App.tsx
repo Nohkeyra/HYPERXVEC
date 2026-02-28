@@ -510,18 +510,23 @@ export default function App() {
           
           let basePrompt = finalPrompt;
           if (uploadedImage && uploadedMimeType && activeTab !== 'core lettering' && activeTab !== 'logo design') {
-             addLog('Analyzing image subject for vectorization...', 'process');
-             try {
-               const subjectDescription = await describeImageSubject(uploadedImage, uploadedMimeType);
-               const poseConstraint = "CRITICAL: Maintain the EXACT original pose, position, and composition of the subject. Do NOT reposition. Apply style with minimal structural adjustment.";
-               basePrompt = `${poseConstraint} Subject: ${subjectDescription}. ${finalPrompt}`;
-               if (strictMode) {
-                 basePrompt = `${poseConstraint} STRICTLY RECREATE this subject: ${subjectDescription}. ${finalPrompt}`;
+             const geminiKey = getActiveGeminiKey();
+             if (geminiKey) {
+               addLog('Analyzing image subject for vectorization...', 'process');
+               try {
+                 const subjectDescription = await describeImageSubject(uploadedImage, uploadedMimeType, geminiKey);
+                 const poseConstraint = "CRITICAL: Maintain the EXACT original pose, position, and composition of the subject. Do NOT reposition. Apply style with minimal structural adjustment.";
+                 basePrompt = `${poseConstraint} Subject: ${subjectDescription}. ${finalPrompt}`;
+                 if (strictMode) {
+                   basePrompt = `${poseConstraint} STRICTLY RECREATE this subject: ${subjectDescription}. ${finalPrompt}`;
+                 }
+                 addLog('Subject analysis complete.', 'success');
+               } catch (descError: any) {
+                 console.error("Subject description failed", descError);
+                 addLog(`Subject analysis failed: ${descError.message}. Proceeding with text prompt only.`, 'error');
                }
-               addLog('Subject analysis complete.', 'success');
-             } catch (descError) {
-               console.error("Subject description failed", descError);
-               addLog('Subject analysis failed, proceeding with text prompt only.', 'error');
+             } else {
+               addLog('Skipping Subject Analysis (Requires Gemini Node_01). Using raw image reference...', 'info');
              }
           }
 
