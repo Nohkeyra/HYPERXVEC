@@ -1,0 +1,47 @@
+{
+  "engine": "KSD_V1",
+  "mode": "deterministic_visual",
+  "output_format": "strict_json",
+  "rules": {
+    "no_text_response": true,
+    "geometry_priority": true,
+    "vector_safe": true,
+    "no_style_drift": true,
+    "logo_standards": "strict",
+    "path_quantization": "strict",
+    "color_limit": 16
+  },
+  "input_schema": {
+    "style_type": "typography | logo design | vector",
+    "text": "string",
+    "visual_intent": "string",
+    "complexity": "minimal | balanced | complex"
+  },
+  "render_logic": {
+    "typography": {
+      "layout": "grid",
+      "hierarchy": "weight_contrast",
+      "spacing": "balanced"
+    },
+    "logo design": {
+      "merge": "anchor_based_overlap",
+      "symmetry": "vertical",
+      "stroke_uniform": true,
+      "path_fidelity": "High"
+    },
+    "vector": {
+      "shape_language": "geometric",
+      "anchor_precision": "high",
+      "scalable": true
+    }
+  },
+  "output_schema": {
+    "render_plan": {
+      "composition": "string",
+      "stroke_weight": "string",
+      "symmetry": "string",
+      "density": "string",
+      "color_mode": "string"
+    }
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "version": "2.0",
+  "name": "KSD_V2",
+  "description": "Knowledge Structure Definition for Vector and Typography Art",
+  "layers": [
+    {
+      "id": "vector_base",
+      "type": "structural",
+      "rules": [
+        "mathematically precise paths",
+        "45-degree shears",
+        "zero-gap terminals",
+        "monolithic mass",
+        "interlocking geometry"
+      ]
+    },
+    {
+      "id": "typography_base",
+      "type": "structural",
+      "rules": [
+        "experimental disruptive lettering",
+        "solid block mass",
+        "zero spacing",
+        "sheared terminals",
+        "visual friction over legibility"
+      ]
+    }
+  ]
+}
