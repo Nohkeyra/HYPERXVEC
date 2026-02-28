@@ -190,4 +190,4 @@ const LightningBolt: React.FC<LightningBoltProps> = ({ id, x, y, color, coreColo
   );
 };
 
-export default LightningBolt;
+export default React.memo(LightningBolt);

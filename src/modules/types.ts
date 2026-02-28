@@ -1,5 +1,6 @@
 import { Preset } from "../presets";
 import { EnginePayload } from "../core/ConditionEngine";
+import { ColorPalette } from "../colorPalettes";
 
 export interface GenerationContext {
   prompt: string;
@@ -9,6 +10,7 @@ export interface GenerationContext {
   strictMode?: boolean;
   isIllustrated?: boolean;
   isSubjectOnly?: boolean;
+  selectedPalette?: ColorPalette | null;
 }
 
 export interface ModuleStrategy {

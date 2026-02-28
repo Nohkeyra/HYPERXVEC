@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, Download, Trash2, ZoomIn, Layers } from 'lucide-react';
+import { X, Download, Trash2, ZoomIn, Layers, Share } from 'lucide-react';
 
 interface GalleryPanelProps {
   images: string[];
@@ -16,6 +16,24 @@ export const GalleryPanel: React.FC<GalleryPanelProps> = ({ images, onClose, onD
     link.href = image;
     link.download = `gallery-image-${Date.now()}.png`;
     link.click();
+  };
+
+  const handleShare = async (image: string) => {
+    try {
+      const blob = await fetch(image).then(r => r.blob());
+      const file = new File([blob], 'gallery-image.png', { type: 'image/png' });
+      if (navigator.share) {
+        await navigator.share({
+          files: [file],
+          title: 'VΞCTOR Gallery Asset',
+          text: 'Check out this visual asset from my gallery!'
+        });
+      } else {
+        alert('Sharing not supported on this browser.');
+      }
+    } catch (err) {
+      console.error('Share failed', err);
+    }
   };
 
   return (
@@ -81,6 +99,9 @@ export const GalleryPanel: React.FC<GalleryPanelProps> = ({ images, onClose, onD
               <div className="absolute -top-12 right-0 flex gap-2">
                  <button onClick={() => handleDownload(selectedImage)} className="w-10 h-10 bg-black/70 rounded-full text-white hover:bg-accent hover:text-black flex items-center justify-center">
                     <Download size={20} />
+                  </button>
+                 <button onClick={() => handleShare(selectedImage)} className="w-10 h-10 bg-black/70 rounded-full text-white hover:bg-accent hover:text-black flex items-center justify-center">
+                    <Share size={20} />
                   </button>
                  <button onClick={() => { onDelete(selectedImage); setSelectedImage(null); }} className="w-10 h-10 bg-black/70 rounded-full text-white hover:bg-red-500 flex items-center justify-center">
                     <Trash2 size={20} />

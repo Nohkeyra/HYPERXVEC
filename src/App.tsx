@@ -26,15 +26,14 @@ import {
   Trash2,
   Terminal as TerminalIcon,
   CheckCircle2,
-  AlertCircle,
   Aperture,
-  Cpu,
-  Cloud,
   Save,
   MessageCircle,
   Camera,
   User,
-  Palette
+  Palette,
+  History,
+  Share
 } from 'lucide-react';
 import { VECTOR_PRESETS, TYPOGRAPHY_PRESETS, Preset, PresetCategory } from './presets';
 import { COLOR_PALETTES, ColorPalette } from './colorPalettes';
@@ -50,6 +49,9 @@ import { CameraModal } from './components/CameraModal';
 import { PresetPanel } from './components/PresetPanel';
 import { LOGO_PRESETS } from './modules/LogoModule';
 import { PullToRefresh } from './components/PullToRefresh';
+import { playClickSound, playGenerateSound, playSuccessSound } from './utils/soundUtils';
+import { initHighResAssets } from './assets/HighResAssets';
+import { HistoryPanel } from './components/HistoryPanel';
 
 const SettingsPanel = lazy(() => import('./components/Settings').then(m => ({ default: m.Settings })));
 const PresetPreview = lazy(() => import('./components/PresetPreview').then(m => ({ default: m.PresetPreview })));
@@ -104,6 +106,11 @@ export default function App() {
   const [isDragging, setIsDragging] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [showGallery, setShowGallery] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
+  const [history, setHistory] = useState<any[]>(() => {
+    const saved = localStorage.getItem('genHistory');
+    return saved ? JSON.parse(saved) : [];
+  });
   const [galleryImages, setGalleryImages] = useState<string[]>(() => {
     const saved = localStorage.getItem('galleryImages');
     return saved ? JSON.parse(saved) : [];
@@ -112,6 +119,36 @@ export default function App() {
   const [showColorPalette, setShowColorPalette] = useState(false);
   const [selectedPalette, setSelectedPalette] = useState<ColorPalette | null>(null);
   const [bottomNavHeight, setBottomNavHeight] = useState(0);
+
+  useEffect(() => {
+    localStorage.setItem('genHistory', JSON.stringify(history));
+  }, [history]);
+
+  const addToHistory = (image: string, prompt: string, presetName: string) => {
+    const newItem = {
+      id: Math.random().toString(36).substring(7),
+      prompt,
+      presetName,
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      image
+    };
+    setHistory(prev => [newItem, ...prev.slice(0, 19)]);
+  };
+
+  const handleRestoreHistory = (item: any) => {
+    setUserInput(item.prompt);
+    // Try to find the preset in all categories
+    const allPresets = [...VECTOR_PRESETS, ...TYPOGRAPHY_PRESETS, ...LOGO_PRESETS].flatMap(c => c.presets);
+    const found = allPresets.find(p => p.name === item.presetName);
+    if (found) setSelectedPreset(found);
+    setShowHistory(false);
+    addLog(`Restored prompt and preset: ${item.presetName}`, 'info');
+  };
+
+  const clearHistory = () => {
+    setHistory([]);
+    addLog('Generation history cleared', 'info');
+  };
 
   // Multi-key Gemini Free Tier State
   const [geminiKeys, setGeminiKeys] = useState<string[]>(() => {
@@ -218,9 +255,10 @@ export default function App() {
   }, [logs]);
 
   useEffect(() => {
+    initHighResAssets();
     clearLogs();
     addLog('VΞCTOR Engine Initialized', 'success');
-    addLog('System Version: 1.2 (Seedream APK Fix)', 'info');
+    addLog('System Version: 1.3 (High-Fidelity Build)', 'info');
     addLog('Mode: Free Tier / Image Generation Only', 'info');
     addLog('Awaiting visual directives...', 'info');
 
@@ -289,6 +327,7 @@ export default function App() {
   };
 
   const handleTabChange = (tab: Tab) => {
+    playClickSound();
     setActiveTab(tab);
     addLog(`Module activated: ${tab.toUpperCase()}`, 'info');
     if (!(activeTab === 'image analyzer' && tab === 'vectorize')) {
@@ -432,12 +471,13 @@ export default function App() {
     }
   };
 
-  const handleGenerate = async () => {
+  const handleGenerate = React.useCallback(async () => {
     if (!selectedPreset && activeTab !== 'vectorize') {
       setError('Please select a style preset first.');
       return;
     }
 
+    playGenerateSound();
     setIsGenerating(true);
     setError(null);
     addLog('[PROCESS START] Synthesizing visual geometry... (ETA: 10-20s)', 'process');
@@ -471,7 +511,8 @@ export default function App() {
         mimeType: uploadedMimeType || undefined,
         strictMode,
         isIllustrated,
-        isSubjectOnly
+        isSubjectOnly,
+        selectedPalette
       };
 
       
@@ -541,7 +582,14 @@ export default function App() {
             });
             const batchResults = await Promise.all(batchPromises);
             setResultImage(batchResults);
+            
+            // Add all variations to history
+            batchResults.forEach((img, i) => {
+              addToHistory(img, `${prompt} (Variation ${i + 1})`, presetToUse.name);
+            });
+
             addLog('[PROCESS END] Batch synthesis complete. 4 variations rendered.', 'success');
+            playSuccessSound();
             setIsGenerating(false);
             return;
           } else {
@@ -593,6 +641,12 @@ export default function App() {
       }
       
       setResultImage(result);
+      if (result && !Array.isArray(result)) {
+        addToHistory(result, prompt, presetToUse.name);
+      } else if (Array.isArray(result)) {
+        result.forEach((img, i) => addToHistory(img, `${prompt} (v${i+1})`, presetToUse.name));
+      }
+
       if (selectedPreset) {
         setUsedPresets(prev => new Set(prev).add(selectedPreset.name));
       }
@@ -600,6 +654,7 @@ export default function App() {
         setGenerationCount(prev => prev + 1);
       }
       addLog('[PROCESS END] Synthesis complete. Image rendered.', 'success');
+      playSuccessSound();
     } catch (err: any) {
       let errorMessage = 'An unknown error occurred during synthesis.';
       if (err.message) {
@@ -626,7 +681,7 @@ export default function App() {
     } finally {
       setIsGenerating(false);
     }
-  };
+  }, [selectedPreset, activeTab, userInput, isStrictModeEnabled, generationCount, uploadedImage, uploadedMimeType, isIllustrated, isSubjectOnly, selectedPalette, selectedModel, isBatchMode, getActiveGeminiKey, handleRateLimit]);
 
   const saveToGallery = () => {
     if (!resultImage) return;
@@ -773,6 +828,13 @@ export default function App() {
               title="System Logs"
             >
               <TerminalIcon size={18} className={`${showLogs ? 'text-bg-primary' : 'text-accent'} transition-colors`} />
+            </button>
+            <button
+              onClick={() => setShowHistory(true)}
+              className="w-10 h-10 md:w-12 md:h-12 flex items-center justify-center rounded-xl md:rounded-2xl bg-bg-secondary border border-border-primary hover:border-accent transition-all duration-300 group"
+              title="History"
+            >
+              <History size={18} className="text-accent" />
             </button>
             <button
               onClick={() => setShowGallery(true)}
@@ -932,6 +994,17 @@ export default function App() {
         </AnimatePresence>
 
         <AnimatePresence mode="wait">
+          {showHistory && (
+            <HistoryPanel 
+              history={history}
+              onClose={() => setShowHistory(false)}
+              onRestore={handleRestoreHistory}
+              onClear={clearHistory}
+            />
+          )}
+        </AnimatePresence>
+
+        <AnimatePresence mode="wait">
           {showLogs && (
             <motion.div
               initial={{ opacity: 0 }}
@@ -1032,16 +1105,44 @@ export default function App() {
                         <Download size={16} />
                       </button>
                       {resultImage && (
-                        <button 
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            saveToGallery();
-                          }}
-                          className="w-8 h-8 md:w-10 md:h-10 bg-black/80 backdrop-blur-md border border-white/20 rounded-lg flex items-center justify-center text-white hover:bg-blue-500 transition-all shadow-lg"
-                          title="Save to Gallery"
-                        >
-                          <Save size={16} />
-                        </button>
+                        <>
+                          <button 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              saveToGallery();
+                            }}
+                            className="w-8 h-8 md:w-10 md:h-10 bg-black/80 backdrop-blur-md border border-white/20 rounded-lg flex items-center justify-center text-white hover:bg-blue-500 transition-all shadow-lg"
+                            title="Save to Gallery"
+                          >
+                            <Save size={16} />
+                          </button>
+                          <button 
+                            onClick={async (e) => {
+                              e.stopPropagation();
+                              const imgToShare = Array.isArray(resultImage) ? resultImage[0] : (resultImage || uploadedImage);
+                              if (!imgToShare) return;
+                              try {
+                                const blob = await fetch(imgToShare).then(r => r.blob());
+                                const file = new File([blob], 'synthesis.png', { type: 'image/png' });
+                                if (navigator.share) {
+                                  await navigator.share({
+                                    files: [file],
+                                    title: 'VΞCTOR Synthesis',
+                                    text: 'Check out this vector synthesis I generated!'
+                                  });
+                                } else {
+                                  addLog('Sharing not supported on this browser.', 'error');
+                                }
+                              } catch (err) {
+                                console.error('Share failed', err);
+                              }
+                            }}
+                            className="w-8 h-8 md:w-10 md:h-10 bg-black/80 backdrop-blur-md border border-white/20 rounded-lg flex items-center justify-center text-white hover:bg-accent hover:text-black transition-all shadow-lg"
+                            title="Share Synthesis"
+                          >
+                            <Share size={16} />
+                          </button>
+                        </>
                       )}
                       
                       <button 
@@ -1124,6 +1225,30 @@ export default function App() {
                                 >
                                   <Download size={16} />
                                 </button>
+                                  <button 
+                                    onClick={async (e) => {
+                                      e.stopPropagation();
+                                      try {
+                                        const blob = await fetch(img).then(r => r.blob());
+                                        const file = new File([blob], 'synthesis.png', { type: 'image/png' });
+                                        if (navigator.share) {
+                                          await navigator.share({
+                                            files: [file],
+                                            title: 'VΞCTOR Synthesis',
+                                            text: 'Check out this vector synthesis I generated!'
+                                          });
+                                        } else {
+                                          addLog('Sharing not supported on this browser.', 'error');
+                                        }
+                                      } catch (err) {
+                                        console.error('Share failed', err);
+                                      }
+                                    }}
+                                    className="p-2 bg-white/10 text-white rounded-lg hover:bg-white/20 transition-colors"
+                                    title="Share Variation"
+                                  >
+                                    <Share size={16} />
+                                  </button>
                               </div>
                               <div className="absolute top-2 left-2 bg-black/60 backdrop-blur-md px-2 py-0.5 rounded text-[8px] font-mono text-white/60 uppercase tracking-widest border border-white/10">
                                 Var_{idx + 1}
