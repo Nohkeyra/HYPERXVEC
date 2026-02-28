@@ -43,6 +43,11 @@ jobs:
     - name: Setup Android SDK
       uses: android-actions/setup-android@v3
 
+    - name: Accept Android SDK Licenses
+      run: |
+        yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses
+        yes | $ANDROID_HOME/cmdline-tools/16.0/bin/sdkmanager --licenses
+
     - name: Verify Gradle Wrapper
       run: |
         echo "Checking gradle wrapper files..."
@@ -59,15 +64,19 @@ jobs:
     - name: Grant Gradle permission
       run: chmod +x android/gradlew
 
-    - name: Build Debug APK
+    - name: Build Release APK
       working-directory: ./android
       run: ./gradlew assembleRelease --stacktrace
+      env:
+        KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+        KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+        KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
 
-    - name: Upload Debug APK
+    - name: Upload Release APK
       uses: actions/upload-artifact@v4
       with:
-        name: app-debug
-        path: android/app/build/outputs/apk/debug/app-debug.apk
+        name: app-release
+        path: android/app/build/outputs/apk/release/app-release.apk
         if-no-files-found: warn
 
     - name: Comment on PR if build fails
@@ -79,7 +88,7 @@ jobs:
             issue_number: context.issue.number,
             owner: context.repo.owner,
             repo: context.repo.repo,
-            body: '❌ Android Debug Build Failed. Please check the action logs.'
+            body: '❌ Android Release Build Failed. Please check the action logs.'
           })
 
     - name: Comment on PR if build succeeds
@@ -91,5 +100,5 @@ jobs:
             issue_number: context.issue.number,
             owner: context.repo.owner,
             repo: context.repo.repo,
-            body: '✅ Android Debug Build Succeeded! You can download the APK from the Actions artifacts.'
+            body: '✅ Android Release Build Succeeded! You can download the APK from the Actions artifacts.'
           })
