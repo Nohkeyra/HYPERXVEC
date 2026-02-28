@@ -57,6 +57,6 @@ export const VectorizeModule: ModuleStrategy = {
   },
 
   shouldSkipTurbo: (context: GenerationContext) => {
-    return !!context.base64Image;
+    return false;
   }
 };

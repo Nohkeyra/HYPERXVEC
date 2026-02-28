@@ -220,6 +220,7 @@ export default function App() {
   useEffect(() => {
     clearLogs();
     addLog('VΞCTOR Engine Initialized', 'success');
+    addLog('System Version: 1.2 (Seedream APK Fix)', 'info');
     addLog('Mode: Free Tier / Image Generation Only', 'info');
     addLog('Awaiting visual directives...', 'info');
 
@@ -473,6 +474,7 @@ export default function App() {
         isSubjectOnly
       };
 
+      
       // Pre-flight check for API keys
       if (selectedModel.startsWith('seedream')) {
         const arkKey = localStorage.getItem('arkApiKey');
@@ -484,8 +486,6 @@ export default function App() {
           return;
         }
       }
-
-      const skipTurbo = currentModule.shouldSkipTurbo(generationContext);
 
       let finalPrompt = currentModule.constructPrompt(generationContext);
       let finalNegativePrompt = currentModule.constructNegativePrompt 
@@ -499,7 +499,7 @@ export default function App() {
       
       let result: string | null = null;
       
-      if (selectedModel !== 'gemini' && !skipTurbo) {
+      if (selectedModel !== 'gemini') {
         try {
           const engineName = MODEL_OPTIONS.find(m => m.id === selectedModel)?.label || selectedModel;
           if (selectedModel.startsWith('seedream')) {
@@ -550,16 +550,10 @@ export default function App() {
           setIsGenerating(false);
           return;
         }
-      } else if (skipTurbo && selectedModel !== 'gemini') {
-        addLog(`${currentModule.name} Mode: Bypassing External Engines for direct image processing...`, 'info');
       }
       
-      if (!result && (selectedModel === 'gemini' || skipTurbo)) {
-        if (selectedModel === 'gemini') {
-          addLog('Using Gemini Engine...', 'info');
-        } else {
-          addLog('Switching to Gemini for high-fidelity image processing...', 'info');
-        }
+      if (!result && selectedModel === 'gemini') {
+        addLog('Using Gemini Engine...', 'info');
         try {
           result = await generateVisual(
             finalPrompt, 

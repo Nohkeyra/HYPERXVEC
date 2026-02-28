@@ -29,6 +29,6 @@ export const AnalyzerModule: ModuleStrategy = {
 
   shouldSkipTurbo: (context: GenerationContext) => {
     // Analyzer is primarily for analysis, but if generating, Gemini is better for understanding the input.
-    return !!context.base64Image;
+    return false;
   }
 };
