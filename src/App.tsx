@@ -473,6 +473,18 @@ export default function App() {
         isSubjectOnly
       };
 
+      // Pre-flight check for API keys
+      if (selectedModel.startsWith('seedream')) {
+        const arkKey = localStorage.getItem('arkApiKey');
+        if (!arkKey) {
+          addLog('Missing BytePlus API Key. Opening Settings...', 'error');
+          setError('BytePlus API Key Required. Please configure it in Settings > Node_02.');
+          setShowSettings(true);
+          setIsGenerating(false);
+          return;
+        }
+      }
+
       const skipTurbo = currentModule.shouldSkipTurbo(generationContext);
 
       let finalPrompt = currentModule.constructPrompt(generationContext);
@@ -597,6 +609,9 @@ export default function App() {
           if (window.aistudio) {
             window.aistudio.openSelectKey().catch(console.error);
           }
+        } else if (err.message.includes('BytePlus API key')) {
+          errorMessage = 'BytePlus API Key missing. Please add it in Settings > Node_02.';
+          setShowSettings(true);
         } else if (err.message.includes('API key')) {
           errorMessage = 'Invalid or missing API key. Please check your settings.';
         } else if (err.message.includes('400')) {

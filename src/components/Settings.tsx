@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Key, Save, Trash2, AlertCircle, Loader2, Sparkles, Zap, Shield, Terminal, Download, Upload } from 'lucide-react';
+import { X, Key, Save, Trash2, AlertCircle, Loader2, Sparkles, Zap, Shield, Terminal, Download, Upload, CheckCircle2 } from 'lucide-react';
 import { GoogleGenAI } from "@google/genai";
 import { Preset } from '../presets';
 
@@ -119,8 +119,13 @@ export const Settings: React.FC<SettingsProps> = ({
   const handleSave = () => {
     let savedKeys = [];
 
-    if (arkApiKey) { localStorage.setItem('arkApiKey', arkApiKey); savedKeys.push('BytePlus'); }
-    else localStorage.removeItem('arkApiKey');
+    const trimmedArkKey = arkApiKey.trim();
+    if (trimmedArkKey) { 
+      localStorage.setItem('arkApiKey', trimmedArkKey); 
+      savedKeys.push('BytePlus'); 
+    } else {
+      localStorage.removeItem('arkApiKey');
+    }
 
     if (savedKeys.length > 0) {
       addLog(`[SETTINGS SAVED] API keys updated for: ${savedKeys.join(', ')}`, 'success');
@@ -258,6 +263,11 @@ export const Settings: React.FC<SettingsProps> = ({
             <div className="relative opacity-60 hover:opacity-100 transition-all duration-300">
               <div className="flex items-center justify-between mb-1">
                 <label className="text-[9px] font-mono uppercase tracking-widest text-accent/70">Node_02: BytePlus (Seedream)</label>
+                {arkApiKey && (
+                  <span className="text-[8px] font-mono text-green-400 bg-green-400/10 px-1.5 py-0.5 rounded border border-green-400/20 flex items-center gap-1">
+                    <CheckCircle2 size={10} /> KEY_LOADED
+                  </span>
+                )}
               </div>
               <div className="flex gap-2">
                 <input
