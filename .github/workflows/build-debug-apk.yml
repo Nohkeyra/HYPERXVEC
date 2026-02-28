@@ -1,4 +1,4 @@
-name: Build Debug APK
+name: Build Release APK
 
 on:
   push:
@@ -61,7 +61,7 @@ jobs:
 
     - name: Build Debug APK
       working-directory: ./android
-      run: ./gradlew assembleDebug --stacktrace
+      run: ./gradlew assembleRelease --stacktrace
 
     - name: Upload Debug APK
       uses: actions/upload-artifact@v4
