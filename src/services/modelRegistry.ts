@@ -1,10 +1,10 @@
-export type ImageModel = 'gemini' | 'seedream-5.0' | 'seedream-4.5' | 'seedream-4.0';
+export type ImageModel = 'gemini' | 'seedream-4.5' | 'seedream-4.0' | 'nvidia-sd35-large';
 
 export interface ModelInfo {
   id: ImageModel;
   label: string;
-  provider: 'google_gemini' | 'byteplus';
-  modelId?: string; // For BytePlus models
+  provider: 'google_gemini' | 'byteplus' | 'nvidia';
+  modelId?: string; // For BytePlus or NVIDIA models
   requiresApiKey: boolean;
 }
 
@@ -13,13 +13,6 @@ export const modelRegistry: Record<ImageModel, ModelInfo> = {
     id: 'gemini',
     label: 'Gemini 2.5 Flash',
     provider: 'google_gemini',
-    requiresApiKey: true,
-  },
-  'seedream-5.0': {
-    id: 'seedream-5.0',
-    label: 'Seedream 5.0 Lite',
-    provider: 'byteplus',
-    modelId: 'seedream-5-0-250128',
     requiresApiKey: true,
   },
   'seedream-4.5': {
@@ -34,6 +27,13 @@ export const modelRegistry: Record<ImageModel, ModelInfo> = {
     label: 'Seedream 4.0',
     provider: 'byteplus',
     modelId: 'seedream-4-0-250828',
+    requiresApiKey: true,
+  },
+  'nvidia-sd35-large': {
+    id: 'nvidia-sd35-large',
+    label: 'NVIDIA SD 3.5 Large',
+    provider: 'nvidia',
+    modelId: 'stabilityai/sd3-5-large',
     requiresApiKey: true,
   },
 };

@@ -1,22 +1,69 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# Vector - AI Graphic Design Tool
 
-# Run and deploy your AI Studio app
+## Project Overview
+Vector is a Capacitor/React application for AI-powered graphic design, utilizing Google Gemini and BytePlus (Seedream) models.
 
-This contains everything you need to run your app locally.
+## Prerequisites
+- Node.js (v18+)
+- Android Studio (for APK building)
+- BytePlus API Key (for Seedream models)
+- Google Gemini API Key (optional, for fallback/free tier)
 
-View your app in AI Studio: https://ai.studio/apps/1bd8e04f-140a-4c5c-92ae-b795508b0051
+## Installation
 
-## Run Locally
+1.  **Install Dependencies:**
+    ```bash
+    npm install
+    ```
 
-**Prerequisites:**  Node.js
+2.  **Setup Environment:**
+    -   Copy `.env.example` to `.env` (if needed for local dev, though keys are managed in-app).
+    -   Ensure `GEMINI_API_KEY` is set if you want to hardcode it, otherwise use the Settings UI.
 
+## Development
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
-# Test trigger
-# Trigger Render deploy
+1.  **Start Dev Server:**
+    ```bash
+    npm run dev
+    ```
+    Access at `http://localhost:3000`.
+
+## Building for Android (APK)
+
+To build the APK, you must follow these steps precisely to ensure the latest code is included.
+
+1.  **Build Web Assets & Sync:**
+    ```bash
+    npm run build:android
+    ```
+    *This command runs `npm run build` (Vite build) and `npx cap sync android`.*
+
+2.  **Open Android Studio:**
+    ```bash
+    npx cap open android
+    ```
+
+3.  **Build APK:**
+    -   In Android Studio, go to **Build > Build Bundle(s) / APK(s) > Build APK(s)**.
+    -   The APK will be generated in `android/app/build/outputs/apk/debug/app-debug.apk`.
+
+## Troubleshooting
+
+### "Invalid or missing API key" for Seedream
+-   Ensure you have entered the BytePlus API key in **Settings > Node_02**.
+-   Check the logs for "KEY_LOADED" confirmation.
+
+### "Gemini API Key missing" when using Seedream
+-   This means the app is trying to fallback to Gemini because Seedream failed or was skipped.
+-   Check the logs. If you see "BytePlus generation failed", it means the external engine error occurred.
+-   The latest version (1.2+) disables automatic fallback to prevent confusion.
+
+### Updates not showing in APK
+-   Run `npm run build:android` again.
+-   Ensure you are building the APK from the *updated* `android` folder.
+
+## Project Structure
+-   `src/services/bytePlusService.ts`: Handles Seedream API calls.
+-   `src/services/imageService.ts`: Main entry point for image generation.
+-   `src/App.tsx`: Main UI and logic.
+-   `android/`: Native Android project files.

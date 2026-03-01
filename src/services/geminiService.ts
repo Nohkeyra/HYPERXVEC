@@ -5,8 +5,19 @@ import { compressImage } from './imageUtils';
 const subjectCache: Record<string, string> = {}; // Cache for image subject descriptions
 
 async function geminiRestCall(model: string, payload: any, apiKeyOverride?: string) {
-  const apiKey = apiKeyOverride || process.env.GEMINI_API_KEY;
+  // Use the platform-injected API_KEY if available, otherwise fallback to GEMINI_API_KEY or override
+  const apiKey = apiKeyOverride || process.env.API_KEY || process.env.GEMINI_API_KEY;
+  
   if (!apiKey) {
+    // If no key is found and we're in the AI Studio environment, try to prompt for one
+    if (typeof window !== 'undefined' && window.aistudio) {
+      const hasKey = await window.aistudio.hasSelectedApiKey();
+      if (!hasKey) {
+        await window.aistudio.openSelectKey();
+        // After opening the dialog, we must assume success or wait for the user to retry
+        throw new Error('Please select an API key in the dialog to continue.');
+      }
+    }
     throw new Error('Gemini API key not found. Please add it in Settings.');
   }
 
@@ -66,7 +77,7 @@ export async function generateVisual(
   apiKey?: string,
   negativePrompt?: string
 ): Promise<string> {
-  const model = "gemini-3.1-flash-image-preview";
+  const model = "gemini-2.5-flash-image";
   const artisticModifiers = "ultra-precise, technical illustration, sharp edges, high-fidelity vector, 8k resolution, professional graphic design, clean geometry";
   
   const negPrompt = negativePrompt || preset.negativePrompt;

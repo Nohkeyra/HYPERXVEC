@@ -41,13 +41,17 @@ export const BytePlusApi = {
 
     console.log(`[BytePlus] Sending request to ${modelId}...`);
 
+    // Use local proxy in web preview to bypass CORS
+    const isWebPreview = !Capacitor.isNativePlatform();
+    const requestUrl = isWebPreview ? "/api/proxy/byteplus" : url;
+
     try {
       let data;
       
       if (Capacitor.isNativePlatform()) {
         // Use CapacitorHttp to bypass CORS on mobile
         const response = await CapacitorHttp.post({
-          url,
+          url, // Use original url for APK
           headers,
           data: payload
         });
@@ -58,8 +62,8 @@ export const BytePlusApi = {
         }
         data = response.data;
       } else {
-        // Use standard fetch for web preview
-        const response = await fetch(url, {
+        // Use standard fetch for web preview with local proxy
+        const response = await fetch(requestUrl, {
           method: "POST",
           headers,
           body: JSON.stringify(payload)

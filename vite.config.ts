@@ -26,18 +26,6 @@ export default defineConfig(({ mode }) => {
       port: 3000,
       host: '0.0.0.0',
       allowedHosts: true,
-      proxy: {
-        '/api/proxy/nvidia': {
-          target: 'https://integrate.api.nvidia.com/v1/images/generations',
-          changeOrigin: true,
-          rewrite: (path) => path.replace(/^\/api\/proxy\/nvidia/, ''),
-        },
-        '/api/proxy/byteplus': {
-          target: 'https://ark.ap-southeast.bytepluses.com/api/v3/images/generations',
-          changeOrigin: true,
-          rewrite: (path) => path.replace(/^\/api\/proxy\/byteplus/, ''),
-        },
-      },
     },
     build: {
       minify: "esbuild",

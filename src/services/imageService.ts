@@ -1,6 +1,6 @@
-import { compressImage } from "./imageUtils";
 import { validateModelCall } from "./modelValidator";
 import { BytePlusApi } from './bytePlusService';
+import { NvidiaApi } from './nvidiaService';
 
 import { ImageModel } from './modelRegistry';
 
@@ -12,14 +12,24 @@ export async function generateImage(
   base64Image?: string
 ): Promise<string> {
   const arkApiKey = localStorage.getItem("arkApiKey");
+  const nvidiaApiKey = localStorage.getItem("nvidiaApiKey");
 
-  const modelInfo = validateModelCall(model, arkApiKey || undefined);
+  const modelInfo = validateModelCall(model, { arkApiKey, nvidiaApiKey });
 
   if (modelInfo.provider === 'byteplus') {
     try {
       return await BytePlusApi.generate(prompt, presetBasePrompt, presetNegativePrompt, modelInfo.modelId, base64Image);
     } catch (error: any) {
       console.warn(`BytePlus (Seedream) generation failed:`, error.message);
+      throw error;
+    }
+  }
+
+  if (modelInfo.provider === 'nvidia') {
+    try {
+      return await NvidiaApi.generate(prompt, presetBasePrompt, presetNegativePrompt, modelInfo.modelId, base64Image);
+    } catch (error: any) {
+      console.warn(`NVIDIA generation failed:`, error.message);
       throw error;
     }
   }
