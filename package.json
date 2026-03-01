@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "tsx server.ts",
+    "dev": "vite",
     "start": "node server.ts",
     "build": "vite build",
     "build:android": "npm run build && npx cap sync android",
