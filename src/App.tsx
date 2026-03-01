@@ -9,9 +9,9 @@ import { StatusBar, Style } from '@capacitor/status-bar';
 import { Capacitor } from '@capacitor/core';
 import { 
   Sparkles, 
-  Zap,
   X
 } from 'lucide-react';
+import { NvidiaIcon, BytePlusIcon } from './components/icons/ModelIcons';
 
 // Presets & Constants
 import { VECTOR_PRESETS, TYPOGRAPHY_PRESETS, Preset, PresetCategory } from './presets';
@@ -55,9 +55,9 @@ type Tab = 'vectorize' | 'core lettering' | 'logo design' | 'image analyzer' | '
 
 const MODEL_OPTIONS: { id: ImageModel; label: string; icon: React.ElementType; color: string }[] = [
   { id: 'gemini', label: modelRegistry['gemini'].label, icon: Sparkles, color: 'text-blue-400' },
-  { id: 'seedream-4.5', label: modelRegistry['seedream-4.5'].label, icon: Zap, color: 'text-yellow-500' },
-  { id: 'seedream-4.0', label: modelRegistry['seedream-4.0'].label, icon: Zap, color: 'text-yellow-500' },
-  { id: 'nvidia-sd35-large', label: modelRegistry['nvidia-sd35-large'].label, icon: Zap, color: 'text-green-500' },
+  { id: 'seedream-4.5', label: modelRegistry['seedream-4.5'].label, icon: BytePlusIcon, color: 'text-indigo-400' },
+  { id: 'seedream-4.0', label: modelRegistry['seedream-4.0'].label, icon: BytePlusIcon, color: 'text-indigo-400' },
+  { id: 'nvidia-sd35-large', label: modelRegistry['nvidia-sd35-large'].label, icon: NvidiaIcon, color: 'text-[#76B900]' },
 ];
 
 export default function App() {
@@ -166,7 +166,7 @@ export default function App() {
     setError(null);
     addLog('Initiating Visual DNA Extraction...', 'process');
     try {
-      const preset = await analyzeImage(uploadedImage, uploadedMimeType, getActiveGeminiKey());
+      const preset = await analyzeImage(uploadedImage, uploadedMimeType, activeTab, getActiveGeminiKey());
       const newPreset = { ...preset, name: `Style ${userPresets.length + 1}` };
       setUserPresets(prev => [newPreset, ...prev]);
       setSelectedPreset(newPreset);
@@ -242,10 +242,6 @@ export default function App() {
       let finalNegativePrompt = currentModule.constructNegativePrompt 
         ? currentModule.constructNegativePrompt(generationContext)
         : presetToUse.negativePrompt;
-
-      if (selectedPalette && selectedPalette.name !== 'Default') {
-        finalPrompt += ` CRITICAL COLOR INSTRUCTION: Use exactly this color palette: ${selectedPalette.name} (${selectedPalette.colors.join(', ')}). Do NOT use any other colors.`;
-      }
       
       let result: string | string[] | null = null;
       
@@ -266,18 +262,21 @@ export default function App() {
           }
         }
 
-        const enhancedPrompt = activeTab === 'core lettering' ? basePrompt : `${basePrompt}. Style: ${presetToUse.basePrompt}`;
+        // Modules construct the full prompt including style, so we don't need to append it again.
+        const enhancedPrompt = basePrompt;
         
         if (isBatchMode) {
           addLog('Batch Mode Active: Initiating 2x2 parallel synthesis...', 'process');
           const batchPromises = Array(4).fill(null).map((_, i) => 
-            generateImage(`${enhancedPrompt} (variation ${i + 1})`, selectedModel, presetToUse.basePrompt, finalNegativePrompt, uploadedImage || undefined)
+            // Pass empty string for presetBasePrompt as it's already baked into enhancedPrompt
+            generateImage(`${enhancedPrompt} (variation ${i + 1})`, selectedModel, "", finalNegativePrompt, uploadedImage || undefined)
           );
           result = await Promise.all(batchPromises);
           result.forEach((img, i) => addToHistory(img, `${prompt} (v${i+1})`, presetToUse.name));
           addLog('[PROCESS END] Batch synthesis complete.', 'success');
         } else {
-          result = await generateImage(enhancedPrompt, selectedModel, presetToUse.basePrompt, finalNegativePrompt, uploadedImage || undefined);
+          // Pass empty string for presetBasePrompt as it's already baked into enhancedPrompt
+          result = await generateImage(enhancedPrompt, selectedModel, "", finalNegativePrompt, uploadedImage || undefined);
           addToHistory(result, prompt, presetToUse.name);
         }
       } else {
@@ -335,9 +334,9 @@ export default function App() {
   };
 
   const currentCategories: readonly PresetCategory[] = 
-    activeTab === 'vectorize' ? VECTOR_PRESETS :
-    activeTab === 'core lettering' ? TYPOGRAPHY_PRESETS :
-    activeTab === 'logo design' ? LOGO_PRESETS :
+    activeTab === 'vectorize' ? [...VECTOR_PRESETS, { category: 'User Library', presets: userPresets }] :
+    activeTab === 'core lettering' ? [...TYPOGRAPHY_PRESETS, { category: 'User Library', presets: userPresets }] :
+    activeTab === 'logo design' ? [...LOGO_PRESETS, { category: 'User Library', presets: userPresets }] :
     activeTab === 'image analyzer' ? [{ category: 'User Library', presets: userPresets }] : [];
 
   return (

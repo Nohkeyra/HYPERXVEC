@@ -38,7 +38,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = React.memo(({ onClose, addLog
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
-    files.forEach(file => {
+    files.forEach((file: any) => {
       const reader = new FileReader();
       reader.onloadend = () => {
         setAttachedFiles(prev => [...prev, {

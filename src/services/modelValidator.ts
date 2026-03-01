@@ -20,11 +20,12 @@ export function validateModelCall(modelId: string, keys: { arkApiKey?: string | 
         `Model '${modelId}' requires a BytePlus API key. Please add it in Settings.`
       );
     }
-    if (modelInfo.provider === 'nvidia' && !keys.nvidiaApiKey) {
+    // NVIDIA key is optional on client side as it can be configured on server side
+    /* if (modelInfo.provider === 'nvidia' && !keys.nvidiaApiKey) {
       throw new ModelValidationError(
         `Model '${modelId}' requires an NVIDIA API key. Please add it in Settings.`
       );
-    }
+    } */
   }
 
   return modelInfo;

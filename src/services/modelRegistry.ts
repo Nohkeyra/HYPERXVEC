@@ -26,14 +26,14 @@ export const modelRegistry: Record<ImageModel, ModelInfo> = {
     id: 'seedream-4.0',
     label: 'Seedream 4.0',
     provider: 'byteplus',
-    modelId: 'seedream-4-0-250828',
+    modelId: 'seedream-4-0-241011', 
     requiresApiKey: true,
   },
   'nvidia-sd35-large': {
     id: 'nvidia-sd35-large',
     label: 'NVIDIA SD 3.5 Large',
     provider: 'nvidia',
-    modelId: 'stabilityai/sd3-5-large',
+    modelId: 'stabilityai/stable-diffusion-3.5-large',
     requiresApiKey: true,
   },
 };

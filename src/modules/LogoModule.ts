@@ -1,5 +1,6 @@
 import { ModuleStrategy, GenerationContext } from "./types";
 import { Preset, PresetCategory } from "../presets";
+import { ConditionEngine } from "../core/ConditionEngine";
 
 export const LOGO_PRESETS: PresetCategory[] = [
   {
@@ -112,6 +113,10 @@ export const LogoModule: ModuleStrategy = {
     const { prompt, preset, base64Image, strictMode, isIllustrated, isSubjectOnly, selectedPalette } = context;
     
     const usePalette = selectedPalette && selectedPalette.name !== 'Default';
+    let colorRule = "8. Monochrome-first logic: The design must work in black and white. High contrast.";
+    if (usePalette && selectedPalette) {
+      colorRule = `8. Color Palette Enforcement: STRICTLY USE ONLY THESE COLORS: ${selectedPalette.name} (${selectedPalette.colors.join(', ')}). Do not use default black/white unless specified in the palette.`;
+    }
 
     // Find the category for this preset
     const categoryObj = LOGO_PRESETS.find(c => c.presets.some(p => p.name === preset.name));
@@ -126,17 +131,17 @@ export const LogoModule: ModuleStrategy = {
 5. COMPOSITION: Perfectly centered and symmetrical. Use balanced negative space. Isolated in frame.
 6. TECHNICAL FINISH: Razor-sharp vector edges. Solid color blocking. No gradients (unless Category 8). No shadows. No 3D rendering.
 7. LINGUISTIC PROCESSING (CRITICAL): Treat text as a structured linguistic system, not just a visual shape. Use specialized font tokens encoded through a variational autoencoder (VAE) to represent the fundamental characteristics of each character. Do not attempt to "paint" letters from random noise.
-${usePalette ? `8. Color Palette Enforcement: STRICTLY adhere to the requested color palette. Do not use default black/white unless specified in the palette.` : `8. Monochrome-first logic: The design must work in black and white. High contrast.`}
+${colorRule}
     `;
 
     let finalPrompt = `${logoRules}\n\nStyle Details: ${preset.basePrompt}`;
 
     if (isIllustrated) {
-      finalPrompt += `\nRendered in high-fidelity illustrated vector finish, subtle textures, depth, and polish.`;
+      finalPrompt += `\n\n### ILLUSTRATION MODE ACTIVE\nRendered in high-fidelity illustrated vector finish. Add subtle textures, depth, and polish while maintaining vector clean lines.`;
     }
 
     if (isSubjectOnly) {
-      finalPrompt += `\nSubject isolation, transparent-style solid background, zero background clutter. Focus ONLY on the logo mark.`;
+      finalPrompt += `\n\n### SUBJECT ISOLATION ACTIVE\nSubject isolation, transparent-style solid background, zero background clutter. Focus ONLY on the logo mark.`;
     }
 
     if (base64Image) {
@@ -146,6 +151,9 @@ ${usePalette ? `8. Color Palette Enforcement: STRICTLY adhere to the requested c
 
       finalPrompt = `Redesign this logo/image into a professional vector logo.\n${fidelityInstruction}\n\n${logoRules}\n\nStyle Details: ${preset.basePrompt}`;
     }
+
+    // Apply KSD Rules
+    finalPrompt = ConditionEngine.applyKSD(finalPrompt, 'logo design');
 
     return finalPrompt;
   },

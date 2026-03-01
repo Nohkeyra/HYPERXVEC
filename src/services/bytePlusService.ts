@@ -5,7 +5,14 @@ export const BytePlusApi = {
     const apiKey = localStorage.getItem("arkApiKey");
     if (!apiKey) throw new Error("BytePlus API key not found. Please configure it in Settings (Node_02).");
 
-    const finalPrompt = `${presetBasePrompt}, ${prompt}. Avoid: ${presetNegativePrompt}`;
+    const parts = [];
+    if (presetBasePrompt) parts.push(presetBasePrompt);
+    if (prompt) parts.push(prompt);
+    
+    let finalPrompt = parts.join(", ");
+    if (presetNegativePrompt) {
+      finalPrompt += `. Avoid: ${presetNegativePrompt}`;
+    }
 
     const url = "https://ark.ap-southeast.bytepluses.com/api/v3/images/generations";
     

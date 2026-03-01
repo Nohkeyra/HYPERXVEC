@@ -26,28 +26,26 @@ async function startServer() {
   // NVIDIA SD 3.5 Generation Endpoint
   app.post("/api/generate/nvidia", async (req, res) => {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 120000); // Increased to 120s timeout
+    const timeout = setTimeout(() => controller.abort(), 120000); // 120s timeout
 
     try {
-      const { 
-        prompt, 
-        model = "stabilityai/sd3-5-large",
-      } = req.body;
-      const apiKey = process.env.NVIDIA_API_KEY;
+      const { prompt, model = "stabilityai/stable-diffusion-3.5-large" } = req.body;
+      let apiKey = process.env.NVIDIA_API_KEY;
+      const authHeader = req.headers.authorization;
+      if (authHeader && authHeader.startsWith("Bearer ")) {
+         const clientKey = authHeader.split(" ")[1];
+         if (clientKey && clientKey.trim().length > 0 && clientKey !== "null" && clientKey !== "undefined") {
+             apiKey = clientKey;
+         }
+      }
 
       if (!apiKey) {
         return res.status(412).json({ error: "NVIDIA_API_KEY_NOT_SET" });
       }
 
-      // Map common IDs to the full model names required by the integrate API
-      const mappedModel = model === 'stabilityai/sd3-5-large' 
-        ? 'stabilityai/stable-diffusion-3.5-large' 
-        : model;
+      console.log(`[NVIDIA] Starting generation for: "${prompt.substring(0, 30)}..."`);
 
-      // Use the 'integrate' endpoint which is standard for Stability AI models on NVIDIA
-      const url = "https://integrate.api.nvidia.com/v1/images/generations";
-
-      const response = await fetch(url, {
+      const response = await fetch("https://integrate.api.nvidia.com/v1/images/generations", {
         method: "POST",
         headers: {
           "Authorization": `Bearer ${apiKey}`,
@@ -55,12 +53,12 @@ async function startServer() {
           "Content-Type": "application/json"
         },
         body: JSON.stringify({
-          model: mappedModel,
-          prompt,
+          model: model,
+          prompt: prompt,
           aspect_ratio: "1:1",
-          mode: "base",
-          seed: Math.floor(Math.random() * 1000000),
-          steps: 30
+          num_images: 1,
+          steps: 30,
+          seed: Math.floor(Math.random() * 1000000)
         }),
         signal: controller.signal as any
       });
@@ -68,20 +66,21 @@ async function startServer() {
       clearTimeout(timeout);
 
       if (!response.ok) {
-        const errorText = await response.text();
-        console.error(`NVIDIA API Error (${response.status}):`, errorText);
-        return res.status(response.status).json({ error: `NVIDIA API Error: ${response.status}`, details: errorText });
+        const errorData = await response.json().catch(() => ({}));
+        console.error(`[NVIDIA] API Error (${response.status}):`, errorData);
+        return res.status(response.status).json({ error: "NVIDIA API Error", details: errorData });
       }
 
       const data = await response.json();
+      console.log("[NVIDIA] Success: Image data received.");
       res.json(data);
+
     } catch (error: any) {
       clearTimeout(timeout);
-      if (error.name === 'AbortError' || controller.signal.aborted) {
-        console.error("NVIDIA Generation Timeout (120s exceeded)");
-        return res.status(504).json({ error: "NVIDIA generation timed out. The model is taking too long to respond. Please try again." });
+      if (error.name === 'AbortError') {
+        return res.status(504).json({ error: "NVIDIA generation timed out." });
       }
-      console.error("NVIDIA Generation Error:", error);
+      console.error("[NVIDIA] Critical Error:", error.message);
       res.status(500).json({ error: error.message });
     }
   });

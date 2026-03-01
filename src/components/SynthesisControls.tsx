@@ -245,7 +245,7 @@ export const SynthesisControls: React.FC<SynthesisControlsProps> = ({
 
         {/* Bottom: Action Bar */}
         <div className="flex">
-          {activeTab === 'image analyzer' && uploadedImage && onAnalyze && (
+          {uploadedImage && onAnalyze && (
             <button
               onClick={onAnalyze}
               disabled={isAnalyzing}

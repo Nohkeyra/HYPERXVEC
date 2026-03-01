@@ -1,6 +1,7 @@
 import { Preset } from '../presets';
 import { ColorPalette } from '../colorPalettes';
 import { ImageModel } from '../services/modelRegistry';
+import { KSD } from './ksd';
 
 export interface GenerationConfig {
   readonly prompt: string;
@@ -22,6 +23,36 @@ export interface EnginePayload {
 }
 
 export class ConditionEngine {
+  static applyKSD(prompt: string, moduleId: string): string {
+    let enhancedPrompt = prompt;
+    
+    // Apply Global Rules (Conceptual - represented as instructions)
+    if (KSD.globalRules.geometry_priority) {
+      enhancedPrompt += "\n\n[KSD: GEOMETRY PRIORITY ACTIVE]";
+    }
+
+    // Apply Module-Specific Rules
+    const moduleRules = KSD.modules[moduleId as keyof typeof KSD.modules];
+    if (moduleRules) {
+      enhancedPrompt += `\n\n### KSD MODULE LOGIC: ${moduleId.toUpperCase()}`;
+      enhancedPrompt += `\n- Shape Language: ${moduleRules.shape_language || 'Standard'}`;
+      enhancedPrompt += `\n- Path Fidelity: ${moduleRules.path_fidelity || 'Standard'}`;
+      
+      if (moduleRules.additionalRules) {
+        enhancedPrompt += `\n- ${moduleRules.additionalRules.join('\n- ')}`;
+      }
+    }
+
+    // Apply Structural Layers based on module
+    if (moduleId === 'vectorize') {
+      enhancedPrompt += `\n\n### KSD STRUCTURAL LAYER: VECTOR BASE\n- ${KSD.structuralLayers.vector_base.join('\n- ')}`;
+    } else if (moduleId === 'core lettering') {
+      enhancedPrompt += `\n\n### KSD STRUCTURAL LAYER: TYPOGRAPHY BASE\n- ${KSD.structuralLayers.typography_base.join('\n- ')}`;
+    }
+
+    return enhancedPrompt;
+  }
+
   static build(config: GenerationConfig): EnginePayload {
     // 1. Normalize prompt
     let finalPrompt = config.prompt.trim();
@@ -31,13 +62,7 @@ export class ConditionEngine {
       finalPrompt += ` CRITICAL COLOR INSTRUCTION: Use exactly this color palette: ${config.palette.name} (${config.palette.colors.join(', ')}). Do not use any other colors.`;
     }
 
-    // 3. Apply KSD schema layers (placeholder for KSD V2 logic)
-    // In a full implementation, this would load KSD_V2.json and append structural rules
-    // based on the preset category or specific tags.
-
-    // 4. Validate against model capabilities
-    // For example, if strictMode is true, ensure the model supports it or adjust parameters.
-    // This is a simplified validation.
+    // 3. Validate against model capabilities
     if (config.strictMode && !config.base64Image) {
       console.warn("ConditionEngine: strictMode is true but no reference image provided.");
     }

@@ -145,20 +145,125 @@ export async function describeImageSubject(base64Image: string, mimeType: string
   return description;
 }
 
-export async function analyzeImage(base64Image: string, mimeType: string, apiKey?: string): Promise<Omit<Preset, 'name'>> {
-  const model = "gemini-3-flash-preview";
-  const imagePart = base64ToGenerativePart(base64Image, mimeType);
-  const prompt = `Analyze this image and generate an AI art prompt that captures its style. Focus on medium, texture, color, and composition. Output only the prompt itself.`;
-  const payload = {
-    contents: [{
-      parts: [imagePart, { text: prompt }]
-    }]
+export async function analyzeImage(
+  base64Image: string, 
+  mimeType: string, 
+  activeTab: string = 'vectorize',
+  apiKey?: string
+): Promise<Omit<Preset, 'name'>> {
+  const model = "gemini-2.0-flash-exp"; // Use a capable model for analysis
+  
+  // Construct a module-specific analysis prompt
+  let systemInstruction = `Analyze the artistic style of this image in extreme detail.`;
+  
+  if (activeTab === 'logo design') {
+    systemInstruction += `
+      Focus specifically on LOGO DESIGN elements:
+      1. Shape psychology and geometry (minimalist, abstract, geometric)
+      2. Negative space usage
+      3. Brand personality (modern, luxury, tech, vintage)
+      4. Color psychology (limit to 2-3 dominant colors)
+      5. Scalability and versatility
+      
+      Ignore complex backgrounds or illustrative details irrelevant to logos.
+    `;
+  } else if (activeTab === 'core lettering') {
+    systemInstruction += `
+      Focus specifically on TYPOGRAPHY and LETTERING:
+      1. Font style (serif, sans-serif, script, graffiti, gothic)
+      2. Letterform characteristics (weight, kerning, flourishes)
+      3. Text effects (3D, shadow, outline, gradient, chrome)
+      4. Readability and flow
+      
+      Ignore character subjects unless they are part of the text integration.
+    `;
+  } else {
+    // Default / Vectorize
+    systemInstruction += `
+      Focus on VECTOR ILLUSTRATION style:
+      1. Line work (thickness, variability, clean vs sketch)
+      2. Color palette (flat, shading style, gradients)
+      3. Composition and dimensionality (flat, 2.5D, isometric)
+      4. Texture and finish (clean, grunge, noise, grain)
+    `;
+  }
+
+  systemInstruction += `
+    Return a JSON object with this exact structure:
+    {
+      "basePrompt": "A detailed prompt fragment describing this style that can be appended to other prompts. Do NOT describe the subject, ONLY the style.",
+      "negativePrompt": "What to avoid to maintain this style (e.g. 'photo-realistic' if it's a vector)",
+      "aspectRatio": "1:1"
+    }
+  `;
+
+  const imagePart = {
+    inlineData: {
+      data: base64Image.split(',')[1],
+      mimeType
+    }
   };
 
-  const data = await geminiRestCall(model, payload, apiKey);
-  return {
-    basePrompt: data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || "vector art",
-    aspectRatio: '1:1',
-    negativePrompt: 'blurry, noisy, watermark, text, signature',
+  const payload = {
+    contents: [{
+      parts: [imagePart, { text: systemInstruction }]
+    }],
+    generationConfig: {
+      response_mime_type: "application/json"
+    }
   };
+
+  try {
+    // We need to use the generic call but handle the JSON response
+    // Since geminiRestCall is internal and generic, we'll use it
+    // Note: The previous implementation of analyzeImage was very simple.
+    // We are upgrading it to be smarter.
+    
+    // Use the platform-injected API_KEY if available
+    const keyToUse = apiKey || process.env.API_KEY || process.env.GEMINI_API_KEY;
+    if (!keyToUse) throw new Error("API Key missing");
+
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${keyToUse}`;
+    
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    if (!response.ok) {
+      throw new Error(`Gemini Analysis Failed: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    
+    if (!text) throw new Error("No analysis generated");
+
+    try {
+      const json = JSON.parse(text);
+      return {
+        basePrompt: json.basePrompt || "vector art style",
+        negativePrompt: json.negativePrompt || "blurry, low quality",
+        aspectRatio: json.aspectRatio || "1:1"
+      };
+    } catch (e) {
+      // Fallback if JSON parsing fails
+      console.warn("Failed to parse analysis JSON, using raw text", e);
+      return {
+        basePrompt: text.substring(0, 200),
+        negativePrompt: "",
+        aspectRatio: "1:1"
+      };
+    }
+
+  } catch (error) {
+    console.error("Analysis Error:", error);
+    // Fallback to simple default
+    return {
+      basePrompt: "high quality vector art, clean lines",
+      negativePrompt: "blurry, pixelated",
+      aspectRatio: "1:1"
+    };
+  }
 }

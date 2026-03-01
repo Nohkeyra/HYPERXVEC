@@ -7,11 +7,16 @@ export const AnalyzerModule: ModuleStrategy = {
   constructPrompt: (context: GenerationContext) => {
     // Analyzer typically doesn't generate images, but if it does (e.g. style transfer),
     // it uses the standard prompt.
-    const { prompt, preset, base64Image, strictMode } = context;
+    const { prompt, preset, base64Image, strictMode, isIllustrated, isSubjectOnly, selectedPalette } = context;
     
+    let colorInstruction = "flat solid colors";
+    if (selectedPalette && selectedPalette.name !== 'Default') {
+      colorInstruction = `STRICT COLOR PALETTE: ${selectedPalette.name} (${selectedPalette.colors.join(', ')}). No other colors allowed.`;
+    }
+
     let finalPrompt = `Professional high-end graphic design: ${prompt}. 
     Style: ${preset.basePrompt}. 
-    Technical details: ultra-clean vector lines, sharp edges, flat solid colors, high contrast, professional composition, 8k resolution, minimalist aesthetic.`;
+    Technical details: ultra-clean vector lines, sharp edges, ${colorInstruction}, high contrast, professional composition, 8k resolution, minimalist aesthetic.`;
 
     if (base64Image) {
       const fidelityInstruction = strictMode 
@@ -21,7 +26,15 @@ export const AnalyzerModule: ModuleStrategy = {
       finalPrompt = `Vectorize this exact subject: ${prompt}.
       ${fidelityInstruction}
       Style: ${preset.basePrompt}.
-      Technical details: ultra-clean vector lines, sharp edges, flat solid colors, high contrast, professional composition, 8k resolution, minimalist aesthetic.`;
+      Technical details: ultra-clean vector lines, sharp edges, ${colorInstruction}, high contrast, professional composition, 8k resolution, minimalist aesthetic.`;
+    }
+    
+    if (isIllustrated) {
+      finalPrompt += `\nRendered in high-fidelity illustrated vector finish.`;
+    }
+
+    if (isSubjectOnly) {
+      finalPrompt += `\nSubject isolation, transparent-style solid background.`;
     }
     
     return finalPrompt;
