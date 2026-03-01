@@ -1,26 +1,17 @@
 {
-  "name": "react-example",
+  "name": "hyperxvec",
   "private": true,
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "prebuild": "node render-debug.js",
-    "dev": "vite",
-    "start": "node server.ts",
+    "dev": "tsx server.ts",
+    "start": "node --experimental-strip-types server.ts",
     "build": "vite build",
-    "build:android": "npm run build && npx cap sync android",
-    "preview": "vite preview",
-    "clean": "rm -rf dist",
     "lint": "tsc --noEmit"
   },
   "dependencies": {
-    "@capacitor/core": "^8.1.0",
-    "@capacitor/haptics": "^8.0.1",
-    "@capacitor/status-bar": "^8.0.1",
+    "@capacitor/core": "^7.0.0",
     "@google/genai": "^1.29.0",
-    "@gradio/client": "^2.0.4",
-    "@tailwindcss/vite": "^4.1.14",
-    "@vitejs/plugin-react": "^5.0.4",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
@@ -29,18 +20,19 @@
     "node-fetch": "^3.3.2",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "react-markdown": "^10.1.0",
-    "vite": "^6.2.0"
+    "react-markdown": "^10.1.0"
   },
   "devDependencies": {
-    "@capacitor/android": "^8.1.0",
-    "@capacitor/cli": "^8.1.0",
     "@types/cors": "^2.8.17",
     "@types/express": "^4.17.21",
     "@types/node": "^22.14.0",
     "autoprefixer": "^10.4.21",
+    "esbuild": "^0.25.0",
     "tailwindcss": "^4.1.14",
     "tsx": "^4.21.0",
-    "typescript": "~5.8.2"
+    "typescript": "~5.8.2",
+    "vite": "^6.2.0",
+    "@vitejs/plugin-react": "^5.0.4",
+    "@tailwindcss/vite": "^4.1.14"
   }
 }
