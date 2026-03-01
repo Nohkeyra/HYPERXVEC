@@ -29,19 +29,8 @@ export const Settings: React.FC<SettingsProps> = ({
   setUserPresets,
 }) => {
   const [arkApiKey, setArkApiKey] = useState('');
-  const [nvidiaApiKey, setNvidiaApiKey] = useState('');
-  const [hfToken, setHfToken] = useState('');
   const [isTestingKey, setIsTestingKey] = useState(false);
-  const [isNvidiaServerConfigured, setIsNvidiaServerConfigured] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    // Check if NVIDIA is configured on the server
-    fetch('/api/config/nvidia')
-      .then(res => res.json())
-      .then(data => setIsNvidiaServerConfigured(data.configured))
-      .catch(() => setIsNvidiaServerConfigured(false));
-  }, []);
 
   const testGeminiConnection = async (apiKey: string) => {
     if (!apiKey) return;
@@ -68,8 +57,6 @@ export const Settings: React.FC<SettingsProps> = ({
       timestamp: new Date().toISOString(),
       settings: {
         arkApiKey,
-        nvidiaApiKey,
-        hfToken,
         geminiKeys,
         activeKeyIndex
       },
@@ -101,8 +88,6 @@ export const Settings: React.FC<SettingsProps> = ({
         // Restore Settings
         if (data.settings) {
           if (data.settings.arkApiKey) setArkApiKey(data.settings.arkApiKey);
-          if (data.settings.nvidiaApiKey) setNvidiaApiKey(data.settings.nvidiaApiKey);
-          if (data.settings.hfToken) setHfToken(data.settings.hfToken);
           if (data.settings.geminiKeys) setGeminiKeys(data.settings.geminiKeys);
           if (data.settings.activeKeyIndex !== undefined) setActiveKeyIndex(data.settings.activeKeyIndex);
         }
@@ -129,10 +114,6 @@ export const Settings: React.FC<SettingsProps> = ({
   useEffect(() => {
     const storedArkKey = localStorage.getItem('arkApiKey');
     if (storedArkKey) setArkApiKey(storedArkKey);
-    const storedNvidiaKey = localStorage.getItem('nvidiaApiKey');
-    if (storedNvidiaKey) setNvidiaApiKey(storedNvidiaKey);
-    const storedHfToken = localStorage.getItem('hfToken');
-    if (storedHfToken) setHfToken(storedHfToken);
   }, []);
 
   const handleSave = () => {
@@ -146,22 +127,6 @@ export const Settings: React.FC<SettingsProps> = ({
       localStorage.removeItem('arkApiKey');
     }
 
-    const trimmedNvidiaKey = nvidiaApiKey.trim();
-    if (trimmedNvidiaKey) {
-      localStorage.setItem('nvidiaApiKey', trimmedNvidiaKey);
-      savedKeys.push('NVIDIA');
-    } else {
-      localStorage.removeItem('nvidiaApiKey');
-    }
-
-    const trimmedHfToken = hfToken.trim();
-    if (trimmedHfToken) {
-      localStorage.setItem('hfToken', trimmedHfToken);
-      savedKeys.push('Hugging Face');
-    } else {
-      localStorage.removeItem('hfToken');
-    }
-
     if (savedKeys.length > 0) {
       addLog(`[SETTINGS SAVED] API keys updated for: ${savedKeys.join(', ')}`, 'success');
     } else {
@@ -172,11 +137,7 @@ export const Settings: React.FC<SettingsProps> = ({
 
   const handleClear = () => {
     localStorage.removeItem('arkApiKey');
-    localStorage.removeItem('nvidiaApiKey');
-    localStorage.removeItem('hfToken');
     setArkApiKey('');
-    setNvidiaApiKey('');
-    setHfToken('');
     addLog('API keys cleared.', 'info');
   };
 
@@ -266,12 +227,8 @@ export const Settings: React.FC<SettingsProps> = ({
               // 2. API Key Check
               const hasGemini = !!geminiKeys[0];
               const hasArk = !!arkApiKey;
-              const hasNvidia = !!nvidiaApiKey;
-              const hasHf = !!hfToken;
               addLog(`Node_01 (Gemini): ${hasGemini ? 'CONFIGURED' : 'MISSING'}`, hasGemini ? 'success' : 'error');
               addLog(`Node_02 (BytePlus): ${hasArk ? 'CONFIGURED' : 'MISSING'}`, hasArk ? 'success' : 'error');
-              addLog(`Node_03 (NVIDIA): ${hasNvidia ? 'CONFIGURED' : 'MISSING'}`, hasNvidia ? 'success' : 'error');
-              addLog(`Node_04 (Hugging Face): ${hasHf ? 'CONFIGURED' : 'MISSING'}`, hasHf ? 'success' : 'error');
               
               // 3. Storage Check
               try {
@@ -381,53 +338,6 @@ export const Settings: React.FC<SettingsProps> = ({
                 />
               </div>
             </div>
-
-            {/* Node 3: NVIDIA (SD 3.5) */}
-            <div className="relative opacity-60 hover:opacity-100 transition-all duration-300">
-              <div className="flex items-center justify-between mb-1">
-                <label className="text-[9px] font-mono uppercase tracking-widest text-accent/70">Node_03: NVIDIA (SD 3.5)</label>
-                {(nvidiaApiKey || isNvidiaServerConfigured) && (
-                  <span className={`text-[8px] font-mono ${isNvidiaServerConfigured ? 'text-blue-400 bg-blue-400/10 border-blue-400/20' : 'text-green-400 bg-green-400/10 border-green-400/20'} px-1.5 py-0.5 rounded border flex items-center gap-1`}>
-                    <CheckCircle2 size={10} /> {isNvidiaServerConfigured ? 'SERVER_UPLINK_ACTIVE' : 'LOCAL_KEY_LOADED'}
-                  </span>
-                )}
-              </div>
-              <div className="flex gap-2">
-                <input
-                  type="password"
-                  value={nvidiaApiKey}
-                  onChange={(e) => setNvidiaApiKey(e.target.value)}
-                  placeholder={isNvidiaServerConfigured ? "SERVER_KEY_ACTIVE (OVERRIDE_OPTIONAL)..." : "NVIDIA_API_KEY_REQUIRED..."}
-                  className="flex-1 bg-black/60 border border-accent/10 rounded-lg p-2.5 text-xs font-mono text-accent focus:outline-none focus:border-accent/40 placeholder:text-accent/20"
-                />
-              </div>
-              {isNvidiaServerConfigured && !nvidiaApiKey && (
-                <p className="text-[8px] font-mono text-blue-400/60 mt-1 uppercase tracking-tighter">
-                  System is using the secure server-side NVIDIA uplink. Local key override is optional.
-                </p>
-              )}
-            </div>
-
-            {/* Node 4: Hugging Face (Model Access) */}
-            <div className="relative opacity-60 hover:opacity-100 transition-all duration-300">
-              <div className="flex items-center justify-between mb-1">
-                <label className="text-[9px] font-mono uppercase tracking-widest text-accent/70">Node_04: Hugging Face (Model Access)</label>
-                {hfToken && (
-                  <span className="text-[8px] font-mono text-green-400 bg-green-400/10 px-1.5 py-0.5 rounded border border-green-400/20 flex items-center gap-1">
-                    <CheckCircle2 size={10} /> TOKEN_LOADED
-                  </span>
-                )}
-              </div>
-              <div className="flex gap-2">
-                <input
-                  type="password"
-                  value={hfToken}
-                  onChange={(e) => setHfToken(e.target.value)}
-                  placeholder="HF_TOKEN_REQUIRED..."
-                  className="flex-1 bg-black/60 border border-accent/10 rounded-lg p-2.5 text-xs font-mono text-accent focus:outline-none focus:border-accent/40 placeholder:text-accent/20"
-                />
-              </div>
-            </div>
           </div>
           
           <div className="mt-4 pt-4 border-t border-accent/10">
@@ -435,52 +345,11 @@ export const Settings: React.FC<SettingsProps> = ({
               SYSTEM_NOTE: Synthesis Engine Nodes established. 
               Node_01 handles primary neural processing. 
               Node_02 handles external specialized generation.
-              Node_03 handles NVIDIA high-fidelity synthesis.
-              Node_04 handles model license verification.
             </p>
           </div>
         </div>
 
-        {/* Gemini API Key Selection (Platform) */}
-        <div className="space-y-4 bg-black/40 p-5 rounded-2xl border border-blue-500/20 relative overflow-hidden group">
-          <div className="flex items-center gap-2 mb-2">
-            <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
-            <h3 className="text-[10px] font-bold uppercase tracking-[0.3em] text-blue-400 flex items-center gap-2">
-              <Sparkles size={12} /> Gemini 2.5 Neural Uplink
-            </h3>
-          </div>
-          
-          <p className="text-[10px] font-mono text-blue-400/60 leading-relaxed uppercase tracking-tighter mb-4">
-            For standard synthesis (Gemini 2.5 Flash), you must authorize the system via the platform's secure neural uplink.
-          </p>
-
-          <button 
-            onClick={async () => {
-              if (window.aistudio) {
-                try {
-                  await window.aistudio.openSelectKey();
-                  addLog('Neural Uplink Authorized: Platform Key Selected', 'success');
-                } catch (e) {
-                  addLog('Neural Uplink Failed: Key Selection Aborted', 'error');
-                }
-              }
-            }}
-            className="w-full py-3 bg-blue-500/10 border border-blue-500/30 text-blue-400 rounded-xl hover:bg-blue-500/20 transition-all text-xs font-mono uppercase tracking-widest flex items-center justify-center gap-2"
-          >
-            <Shield size={14} /> Authorize Neural Uplink
-          </button>
-          
-          <div className="mt-2 pt-2 border-t border-blue-500/10">
-             <a 
-               href="https://ai.google.dev/gemini-api/docs/billing" 
-               target="_blank" 
-               rel="noopener noreferrer"
-               className="text-[8px] font-mono text-blue-400/40 hover:text-blue-400 transition-colors uppercase tracking-tighter"
-             >
-               View Billing Documentation & Setup Guide
-             </a>
-          </div>
-        </div>
+        {/* Gemini API Key Selection (Platform) */} 
       </div>
 
       <div className="flex justify-between items-center p-6 border-t border-border-primary mt-auto shrink-0 bg-bg-secondary">

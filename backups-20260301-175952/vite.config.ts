@@ -2,10 +2,6 @@ import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from '@tailwindcss/vite';
 import path from 'path';
-import { fileURLToPath } from 'url';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, '.', '');
@@ -15,7 +11,6 @@ export default defineConfig(({ mode }) => {
       'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY),
       'process.env.STABILITY_API_KEY': JSON.stringify(env.STABILITY_API_KEY),
       'process.env.OPENAI_API_KEY': JSON.stringify(env.OPENAI_API_KEY),
-      'process.env.VITE_API_URL': JSON.stringify(env.VITE_API_URL),
     },
     resolve: {
       alias: {
@@ -26,18 +21,6 @@ export default defineConfig(({ mode }) => {
       port: 3000,
       host: '0.0.0.0',
       allowedHosts: true,
-      proxy: {
-        '/api/proxy/nvidia': {
-          target: 'https://integrate.api.nvidia.com/v1/images/generations',
-          changeOrigin: true,
-          rewrite: (path) => path.replace(/^\/api\/proxy\/nvidia/, ''),
-        },
-        '/api/proxy/byteplus': {
-          target: 'https://ark.ap-southeast.bytepluses.com/api/v3/images/generations',
-          changeOrigin: true,
-          rewrite: (path) => path.replace(/^\/api\/proxy\/byteplus/, ''),
-        },
-      },
     },
     build: {
       minify: "esbuild",
