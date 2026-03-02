@@ -1,5 +1,4 @@
 import { Capacitor, CapacitorHttp } from '@capacitor/core';
-import { NvidiaApi } from './nvidiaService';
 
 export interface ChatMessage {
   role: 'system' | 'user' | 'assistant';
@@ -8,20 +7,7 @@ export interface ChatMessage {
 
 export const VectorAssistantApi = {
   chat: async (messages: ChatMessage[], apiKey: string): Promise<string> => {
-    // Check if NVIDIA key is available and prefer it if the user wants to use NVIDIA
-    // For now, we default to BytePlus unless the key is missing or specifically requested (future feature)
-    // But since the user asked about Llama 4 in NVIDIA service, let's add a fallback or switch logic.
-    
-    const nvidiaKey = localStorage.getItem("nvidiaApiKey");
-    // If we have an NVIDIA key and NO BytePlus key, use NVIDIA Llama 4
-    if (nvidiaKey && !apiKey) {
-       console.log("Using NVIDIA Llama 4 for Chat...");
-       return await NvidiaApi.chat(messages);
-    }
-
-    const effectiveApiKey = apiKey || localStorage.getItem("arkApiKey") || "68c4b074-d2ee-4465-9de5-6d5f83f80b53";
-    
-    if (!effectiveApiKey) throw new Error("BytePlus API key not found. Please configure it in Settings (Node_02).");
+    if (!apiKey) throw new Error("BytePlus API key not found. Please configure it in Settings (Node_02).");
 
     const url = "https://ark.ap-southeast.bytepluses.com/api/v3/chat/completions";
     const payload = {
@@ -33,7 +19,7 @@ export const VectorAssistantApi = {
 
     const headers = {
       "Content-Type": "application/json",
-      "Authorization": `Bearer ${effectiveApiKey}`
+      "Authorization": `Bearer ${apiKey}`
     };
 
     try {

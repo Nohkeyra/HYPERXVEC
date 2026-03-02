@@ -59,8 +59,8 @@ export const ChatPanel: React.FC<ChatPanelProps> = React.memo(({ onClose, addLog
   const handleSend = async () => {
     if (!input.trim() && attachedFiles.length === 0) return;
     
-    if (!apiKey && !localStorage.getItem('nvidiaApiKey')) {
-      addLog('API key required for Vector Assistant. Please configure BytePlus (Node_02) or NVIDIA (Node_03) in Settings.', 'error');
+    if (!apiKey) {
+      addLog('BytePlus API key required for Vector Assistant. Please add it in Settings (Node_02).', 'error');
       return;
     }
 
@@ -101,7 +101,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = React.memo(({ onClose, addLog
       
       apiMessages.push({ role: 'user', content: userContent });
 
-      const responseText = await VectorAssistantApi.chat(apiMessages, apiKey || '');
+      const responseText = await VectorAssistantApi.chat(apiMessages, apiKey);
       
       setMessages(prev => [...prev, { role: 'assistant', text: responseText || 'I encountered an issue processing that request.' }]);
     } catch (error: any) {

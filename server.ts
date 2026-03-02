@@ -45,7 +45,10 @@ async function startServer() {
 
       console.log(`[NVIDIA] Starting generation for: "${prompt.substring(0, 30)}..."`);
 
-      const response = await fetch("https://integrate.api.nvidia.com/v1/images/generations", {
+      // Use the genai endpoint structure: https://integrate.api.nvidia.com/v1/genai/{model_id}
+      const url = `https://integrate.api.nvidia.com/v1/genai/${model}`;
+
+      const response = await fetch(url, {
         method: "POST",
         headers: {
           "Authorization": `Bearer ${apiKey}`,
@@ -53,12 +56,12 @@ async function startServer() {
           "Content-Type": "application/json"
         },
         body: JSON.stringify({
-          model: model,
           prompt: prompt,
+          negative_prompt: req.body.negative_prompt || "",
+          cfg_scale: 5,
           aspect_ratio: "1:1",
-          num_images: 1,
-          steps: 30,
-          seed: Math.floor(Math.random() * 1000000)
+          seed: Math.floor(Math.random() * 1000000),
+          steps: 50
         }),
         signal: controller.signal as any
       });
@@ -81,6 +84,75 @@ async function startServer() {
         return res.status(504).json({ error: "NVIDIA generation timed out." });
       }
       console.error("[NVIDIA] Critical Error:", error.message);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // NVIDIA Chat Proxy Endpoint
+  app.post("/api/proxy/nvidia/chat", async (req, res) => {
+    try {
+      const url = "https://integrate.api.nvidia.com/v1/chat/completions";
+      const authHeader = req.headers.authorization;
+
+      if (!authHeader) {
+        return res.status(401).json({ error: "Missing Authorization header" });
+      }
+
+      const response = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": authHeader,
+          "Accept": "application/json"
+        },
+        body: JSON.stringify(req.body)
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`[NVIDIA Chat Proxy] Upstream Error (${response.status}):`, errorText);
+        return res.status(response.status).send(errorText);
+      }
+
+      const data = await response.json();
+      res.json(data);
+    } catch (error: any) {
+      console.error("[NVIDIA Chat Proxy] Error:", error.message);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // BytePlus Proxy Endpoint
+  app.post("/api/proxy/byteplus", async (req, res) => {
+    try {
+      const url = "https://ark.ap-southeast.bytepluses.com/api/v3/images/generations";
+      const authHeader = req.headers.authorization;
+
+      if (!authHeader) {
+        return res.status(401).json({ error: "Missing Authorization header" });
+      }
+
+      console.log(`[BytePlus Proxy] Forwarding request to ${url}`);
+
+      const response = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": authHeader
+        },
+        body: JSON.stringify(req.body)
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`[BytePlus Proxy] Upstream Error (${response.status}):`, errorText);
+        return res.status(response.status).send(errorText);
+      }
+
+      const data = await response.json();
+      res.json(data);
+    } catch (error: any) {
+      console.error("[BytePlus Proxy] Error:", error.message);
       res.status(500).json({ error: error.message });
     }
   });

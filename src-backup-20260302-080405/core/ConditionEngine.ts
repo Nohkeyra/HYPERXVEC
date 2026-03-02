@@ -1,7 +1,7 @@
-import { Preset } from '@/src/presets';
-import { ColorPalette } from '@/src/colorPalettes';
-import { ImageModel } from '@/src/services/modelRegistry';
-import { KSD } from '@/src/core/ksd';
+import { Preset } from '../presets';
+import { ColorPalette } from '../colorPalettes';
+import { ImageModel } from '../services/modelRegistry';
+import { KSD } from './ksd';
 
 export interface GenerationConfig {
   readonly prompt: string;
@@ -35,10 +35,8 @@ export class ConditionEngine {
     const moduleRules = KSD.modules[moduleId as keyof typeof KSD.modules];
     if (moduleRules) {
       enhancedPrompt += `\n\n### KSD MODULE LOGIC: ${moduleId.toUpperCase()}`;
-      // Cast to any to access properties that might not exist on all module types
-      const rules = moduleRules as any;
-      enhancedPrompt += `\n- Shape Language: ${rules.shape_language || 'Standard'}`;
-      enhancedPrompt += `\n- Path Fidelity: ${rules.path_fidelity || 'Standard'}`;
+      enhancedPrompt += `\n- Shape Language: ${moduleRules.shape_language || 'Standard'}`;
+      enhancedPrompt += `\n- Path Fidelity: ${moduleRules.path_fidelity || 'Standard'}`;
       
       if (moduleRules.additionalRules) {
         enhancedPrompt += `\n- ${moduleRules.additionalRules.join('\n- ')}`;

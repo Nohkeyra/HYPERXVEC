@@ -382,10 +382,10 @@ export const Settings: React.FC<SettingsProps> = ({
               </div>
             </div>
 
-            {/* Node 3: NVIDIA (Llama 4) */}
+            {/* Node 3: NVIDIA (SD 3.5) */}
             <div className="relative opacity-60 hover:opacity-100 transition-all duration-300">
               <div className="flex items-center justify-between mb-1">
-                <label className="text-[9px] font-mono uppercase tracking-widest text-accent/70">Node_03: NVIDIA (Llama 4)</label>
+                <label className="text-[9px] font-mono uppercase tracking-widest text-accent/70">Node_03: NVIDIA (SD 3.5)</label>
                 {(nvidiaApiKey || isNvidiaServerConfigured) && (
                   <span className={`text-[8px] font-mono ${isNvidiaServerConfigured ? 'text-blue-400 bg-blue-400/10 border-blue-400/20' : 'text-green-400 bg-green-400/10 border-green-400/20'} px-1.5 py-0.5 rounded border flex items-center gap-1`}>
                     <CheckCircle2 size={10} /> {isNvidiaServerConfigured ? 'SERVER_UPLINK_ACTIVE' : 'LOCAL_KEY_LOADED'}
@@ -397,13 +397,13 @@ export const Settings: React.FC<SettingsProps> = ({
                   type="password"
                   value={nvidiaApiKey}
                   onChange={(e) => setNvidiaApiKey(e.target.value)}
-                  placeholder={isNvidiaServerConfigured ? "SERVER_KEY_ACTIVE (OVERRIDE_OPTIONAL)..." : "NVIDIA_LLAMA_KEY_REQUIRED..."}
+                  placeholder={isNvidiaServerConfigured ? "SERVER_KEY_ACTIVE (OVERRIDE_OPTIONAL)..." : "NVIDIA_API_KEY_REQUIRED..."}
                   className="flex-1 bg-black/60 border border-accent/10 rounded-lg p-2.5 text-xs font-mono text-accent focus:outline-none focus:border-accent/40 placeholder:text-accent/20"
                 />
               </div>
               {isNvidiaServerConfigured && !nvidiaApiKey && (
                 <p className="text-[8px] font-mono text-blue-400/60 mt-1 uppercase tracking-tighter">
-                  System is using the secure server-side NVIDIA Llama 4 uplink. Local key override is optional.
+                  System is using the secure server-side NVIDIA uplink. Local key override is optional.
                 </p>
               )}
             </div>

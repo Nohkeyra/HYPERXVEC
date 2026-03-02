@@ -11,7 +11,7 @@ export async function generateImage(
   presetNegativePrompt: string,
   base64Image?: string
 ): Promise<string> {
-  const arkApiKey = localStorage.getItem("arkApiKey") || "68c4b074-d2ee-4465-9de5-6d5f83f80b53";
+  const arkApiKey = localStorage.getItem("arkApiKey");
   const nvidiaApiKey = localStorage.getItem("nvidiaApiKey");
 
   const modelInfo = validateModelCall(model, { arkApiKey, nvidiaApiKey });

@@ -2,9 +2,7 @@ import { Capacitor, CapacitorHttp } from '@capacitor/core';
 
 export const BytePlusApi = {
   generate: async (prompt: string, presetBasePrompt: string, presetNegativePrompt: string, modelId: string = "seedream-4-5-251128", base64Image?: string): Promise<string> => {
-    // Use provided key as fallback if not in local storage
-    const apiKey = localStorage.getItem("arkApiKey") || "68c4b074-d2ee-4465-9de5-6d5f83f80b53";
-    
+    const apiKey = localStorage.getItem("arkApiKey");
     if (!apiKey) throw new Error("BytePlus API key not found. Please configure it in Settings (Node_02).");
 
     const parts = [];

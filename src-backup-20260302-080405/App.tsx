@@ -57,6 +57,7 @@ const MODEL_OPTIONS: { id: ImageModel; label: string; icon: React.ElementType; c
   { id: 'gemini', label: modelRegistry['gemini'].label, icon: Sparkles, color: 'text-blue-400' },
   { id: 'seedream-4.5', label: modelRegistry['seedream-4.5'].label, icon: BytePlusIcon, color: 'text-indigo-400' },
   { id: 'seedream-4.0', label: modelRegistry['seedream-4.0'].label, icon: BytePlusIcon, color: 'text-indigo-400' },
+  { id: 'nvidia-sd35-large', label: modelRegistry['nvidia-sd35-large'].label, icon: NvidiaIcon, color: 'text-[#76B900]' },
 ];
 
 export default function App() {
@@ -225,6 +226,9 @@ export default function App() {
       if (selectedModel.startsWith('seedream') && !localStorage.getItem('arkApiKey')) {
         throw new Error('BytePlus API Key Required. Please configure it in Settings > Node_02.');
       }
+      if (selectedModel === 'nvidia-sd35-large' && !localStorage.getItem('nvidiaApiKey')) {
+        throw new Error('NVIDIA API Key Required. Please configure it in Settings.');
+      }
 
       let finalPrompt = currentModule.constructPrompt(generationContext);
       
@@ -294,10 +298,6 @@ export default function App() {
       addLog('[PROCESS END] Synthesis complete.', 'success');
       playSuccessSound();
     } catch (err: any) {
-      if (err.message && err.message.includes('failed to connect to websocket')) {
-        // Suppress benign Vite HMR errors
-        return;
-      }
       setError(err.message);
       addLog(`Synthesis failed: ${err.message}`, 'error');
       if (err.message.includes('API key') || err.message.includes('Required')) setShowSettings(true);
@@ -358,7 +358,7 @@ export default function App() {
           <AnimatePresence mode="wait">
             {activeTab === 'chat' ? (
               <motion.div key="chat-view" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="w-full flex justify-center py-4 md:py-8">
-                <ChatPanel onClose={() => handleTabChange('vectorize')} addLog={addLog} apiKey={localStorage.getItem('arkApiKey') || '68c4b074-d2ee-4465-9de5-6d5f83f80b53'} />
+                <ChatPanel onClose={() => handleTabChange('vectorize')} addLog={addLog} apiKey={localStorage.getItem('arkApiKey') || ''} />
               </motion.div>
             ) : (
               <motion.div key="main-view" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex flex-col lg:flex-row gap-6 lg:gap-8 items-start">

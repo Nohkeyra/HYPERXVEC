@@ -1,64 +1,6 @@
 import { Capacitor, CapacitorHttp } from '@capacitor/core';
 
 export const NvidiaApi = {
-  chat: async (messages: any[], modelId: string = "meta/llama-4-maverick-17b-128e-instruct"): Promise<string> => {
-    const apiKey = localStorage.getItem("nvidiaApiKey") || "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";
-    if (!apiKey) throw new Error("NVIDIA API key not found. Please configure it in Settings.");
-
-    const isNative = Capacitor.isNativePlatform();
-    // Use standard OpenAI-compatible endpoint for NVIDIA NIMs
-    const url = isNative 
-      ? "https://integrate.api.nvidia.com/v1/chat/completions"
-      : "/api/proxy/nvidia/chat";
-
-    const payload = {
-      model: modelId,
-      messages: messages,
-      temperature: 1.00,
-      top_p: 1.00,
-      max_tokens: 512,
-      frequency_penalty: 0.00,
-      presence_penalty: 0.00,
-      stream: false
-    };
-
-    const headers: Record<string, string> = {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${apiKey}`
-    };
-
-    try {
-      let data;
-      if (isNative) {
-        const response = await CapacitorHttp.post({ url, headers, data: payload });
-        if (response.status !== 200) {
-           throw new Error(`NVIDIA Chat API error (${response.status}): ${JSON.stringify(response.data)}`);
-        }
-        data = response.data;
-      } else {
-        const response = await fetch(url, {
-          method: "POST",
-          headers,
-          body: JSON.stringify(payload)
-        });
-        if (!response.ok) {
-          const errText = await response.text();
-          throw new Error(`NVIDIA Chat API error (${response.status}): ${errText}`);
-        }
-        data = await response.json();
-      }
-
-      if (data.choices && data.choices.length > 0 && data.choices[0].message) {
-        return data.choices[0].message.content;
-      } else {
-        throw new Error("Invalid response format from NVIDIA Chat API");
-      }
-    } catch (error: any) {
-      console.error("NVIDIA Chat Error:", error);
-      throw error;
-    }
-  },
-
   generate: async (prompt: string, presetBasePrompt: string, presetNegativePrompt: string, modelId: string = "stabilityai/stable-diffusion-3.5-large", base64Image?: string): Promise<string> => {
     const apiKey = localStorage.getItem("nvidiaApiKey");
     
@@ -107,8 +49,7 @@ export const NvidiaApi = {
         // Proxy Payload
         payload = {
           prompt: finalPrompt,
-          model: modelId,
-          negative_prompt: presetNegativePrompt || ""
+          model: modelId
         };
       }
 

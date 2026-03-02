@@ -154,18 +154,9 @@ export const SynthesisControls: React.FC<SynthesisControlsProps> = ({
             value={userInput}
             onChange={(e) => setUserInput(e.target.value)}
             placeholder="ENTER VISUAL DIRECTIVES..."
-            className="w-full bg-bg-secondary p-6 pb-16 text-sm font-mono uppercase tracking-widest focus:outline-none resize-none h-32 lg:h-[300px] xl:h-[400px] placeholder:opacity-30 relative z-10 transition-all duration-300"
+            className="w-full bg-bg-secondary p-6 pb-16 text-sm font-mono uppercase tracking-widest focus:outline-none resize-none h-32 lg:h-[400px] xl:h-[500px] placeholder:opacity-30 relative z-10 transition-all duration-300"
           />
           <div className="absolute right-4 top-4 z-20 flex items-center gap-2">
-            {userInput && (
-              <button 
-                onClick={() => setUserInput('')}
-                className="p-2 text-text-secondary hover:text-red-500 transition-colors bg-bg-primary/50 rounded-lg backdrop-blur-sm"
-                title="Clear Input"
-              >
-                <X size={14} />
-              </button>
-            )}
             <div className="relative group/attention">
               <button 
                 className="p-2 text-text-secondary hover:text-accent transition-colors"
@@ -204,6 +195,14 @@ export const SynthesisControls: React.FC<SynthesisControlsProps> = ({
                 </div>
               </div>
             </div>
+            {userInput && (
+              <button 
+                onClick={() => setUserInput('')}
+                className="p-2 text-text-secondary hover:text-red-500 transition-colors"
+              >
+                <X size={16} />
+              </button>
+            )}
             <div className="w-2 h-2 rounded-full bg-accent animate-pulse" />
           </div>
 
@@ -246,7 +245,7 @@ export const SynthesisControls: React.FC<SynthesisControlsProps> = ({
 
         {/* Bottom: Action Bar */}
         <div className="flex">
-          {uploadedImage && onAnalyze && activeTab === 'image analyzer' && (
+          {uploadedImage && onAnalyze && (
             <button
               onClick={onAnalyze}
               disabled={isAnalyzing}

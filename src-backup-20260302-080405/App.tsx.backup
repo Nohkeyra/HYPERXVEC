@@ -9,9 +9,9 @@ import { StatusBar, Style } from '@capacitor/status-bar';
 import { Capacitor } from '@capacitor/core';
 import { 
   Sparkles, 
+  Zap,
   X
 } from 'lucide-react';
-import { NvidiaIcon, BytePlusIcon } from './components/icons/ModelIcons';
 
 // Presets & Constants
 import { VECTOR_PRESETS, TYPOGRAPHY_PRESETS, Preset, PresetCategory } from './presets';
@@ -55,8 +55,9 @@ type Tab = 'vectorize' | 'core lettering' | 'logo design' | 'image analyzer' | '
 
 const MODEL_OPTIONS: { id: ImageModel; label: string; icon: React.ElementType; color: string }[] = [
   { id: 'gemini', label: modelRegistry['gemini'].label, icon: Sparkles, color: 'text-blue-400' },
-  { id: 'seedream-4.5', label: modelRegistry['seedream-4.5'].label, icon: BytePlusIcon, color: 'text-indigo-400' },
-  { id: 'seedream-4.0', label: modelRegistry['seedream-4.0'].label, icon: BytePlusIcon, color: 'text-indigo-400' },
+  { id: 'seedream-4.5', label: modelRegistry['seedream-4.5'].label, icon: Zap, color: 'text-yellow-500' },
+  { id: 'seedream-4.0', label: modelRegistry['seedream-4.0'].label, icon: Zap, color: 'text-yellow-500' },
+  { id: 'nvidia-sd35-large', label: modelRegistry['nvidia-sd35-large'].label, icon: Zap, color: 'text-green-500' },
 ];
 
 export default function App() {
@@ -165,7 +166,7 @@ export default function App() {
     setError(null);
     addLog('Initiating Visual DNA Extraction...', 'process');
     try {
-      const preset = await analyzeImage(uploadedImage, uploadedMimeType, activeTab, getActiveGeminiKey());
+      const preset = await analyzeImage(uploadedImage, uploadedMimeType, getActiveGeminiKey());
       const newPreset = { ...preset, name: `Style ${userPresets.length + 1}` };
       setUserPresets(prev => [newPreset, ...prev]);
       setSelectedPreset(newPreset);
@@ -225,6 +226,9 @@ export default function App() {
       if (selectedModel.startsWith('seedream') && !localStorage.getItem('arkApiKey')) {
         throw new Error('BytePlus API Key Required. Please configure it in Settings > Node_02.');
       }
+      if (selectedModel === 'nvidia-sd35-large' && !localStorage.getItem('nvidiaApiKey')) {
+        throw new Error('NVIDIA API Key Required. Please configure it in Settings.');
+      }
 
       let finalPrompt = currentModule.constructPrompt(generationContext);
       
@@ -238,6 +242,10 @@ export default function App() {
       let finalNegativePrompt = currentModule.constructNegativePrompt 
         ? currentModule.constructNegativePrompt(generationContext)
         : presetToUse.negativePrompt;
+
+      if (selectedPalette && selectedPalette.name !== 'Default') {
+        finalPrompt += ` CRITICAL COLOR INSTRUCTION: Use exactly this color palette: ${selectedPalette.name} (${selectedPalette.colors.join(', ')}). Do NOT use any other colors.`;
+      }
       
       let result: string | string[] | null = null;
       
@@ -258,21 +266,18 @@ export default function App() {
           }
         }
 
-        // Modules construct the full prompt including style, so we don't need to append it again.
-        const enhancedPrompt = basePrompt;
+        const enhancedPrompt = activeTab === 'core lettering' ? basePrompt : `${basePrompt}. Style: ${presetToUse.basePrompt}`;
         
         if (isBatchMode) {
           addLog('Batch Mode Active: Initiating 2x2 parallel synthesis...', 'process');
           const batchPromises = Array(4).fill(null).map((_, i) => 
-            // Pass empty string for presetBasePrompt as it's already baked into enhancedPrompt
-            generateImage(`${enhancedPrompt} (variation ${i + 1})`, selectedModel, "", finalNegativePrompt, uploadedImage || undefined)
+            generateImage(`${enhancedPrompt} (variation ${i + 1})`, selectedModel, presetToUse.basePrompt, finalNegativePrompt, uploadedImage || undefined)
           );
           result = await Promise.all(batchPromises);
           result.forEach((img, i) => addToHistory(img, `${prompt} (v${i+1})`, presetToUse.name));
           addLog('[PROCESS END] Batch synthesis complete.', 'success');
         } else {
-          // Pass empty string for presetBasePrompt as it's already baked into enhancedPrompt
-          result = await generateImage(enhancedPrompt, selectedModel, "", finalNegativePrompt, uploadedImage || undefined);
+          result = await generateImage(enhancedPrompt, selectedModel, presetToUse.basePrompt, finalNegativePrompt, uploadedImage || undefined);
           addToHistory(result, prompt, presetToUse.name);
         }
       } else {
@@ -294,10 +299,6 @@ export default function App() {
       addLog('[PROCESS END] Synthesis complete.', 'success');
       playSuccessSound();
     } catch (err: any) {
-      if (err.message && err.message.includes('failed to connect to websocket')) {
-        // Suppress benign Vite HMR errors
-        return;
-      }
       setError(err.message);
       addLog(`Synthesis failed: ${err.message}`, 'error');
       if (err.message.includes('API key') || err.message.includes('Required')) setShowSettings(true);
@@ -334,9 +335,9 @@ export default function App() {
   };
 
   const currentCategories: readonly PresetCategory[] = 
-    activeTab === 'vectorize' ? [...VECTOR_PRESETS, { category: 'User Library', presets: userPresets }] :
-    activeTab === 'core lettering' ? [...TYPOGRAPHY_PRESETS, { category: 'User Library', presets: userPresets }] :
-    activeTab === 'logo design' ? [...LOGO_PRESETS, { category: 'User Library', presets: userPresets }] :
+    activeTab === 'vectorize' ? VECTOR_PRESETS :
+    activeTab === 'core lettering' ? TYPOGRAPHY_PRESETS :
+    activeTab === 'logo design' ? LOGO_PRESETS :
     activeTab === 'image analyzer' ? [{ category: 'User Library', presets: userPresets }] : [];
 
   return (
@@ -358,7 +359,7 @@ export default function App() {
           <AnimatePresence mode="wait">
             {activeTab === 'chat' ? (
               <motion.div key="chat-view" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="w-full flex justify-center py-4 md:py-8">
-                <ChatPanel onClose={() => handleTabChange('vectorize')} addLog={addLog} apiKey={localStorage.getItem('arkApiKey') || '68c4b074-d2ee-4465-9de5-6d5f83f80b53'} />
+                <ChatPanel onClose={() => handleTabChange('vectorize')} addLog={addLog} apiKey={localStorage.getItem('arkApiKey') || ''} />
               </motion.div>
             ) : (
               <motion.div key="main-view" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex flex-col lg:flex-row gap-6 lg:gap-8 items-start">
