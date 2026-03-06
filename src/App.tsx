@@ -461,6 +461,15 @@ export default function App() {
                         link.click();
                       }
                     }} 
+                    onSaveToGallery={() => {
+                      const imgToSave = Array.isArray(resultImage) ? resultImage[0] : resultImage;
+                      if (!imgToSave) return;
+                      const current = JSON.parse(safeLocalStorage.getItem('galleryImages') || '[]');
+                      if (!current.includes(imgToSave)) {
+                        safeLocalStorage.setItem('galleryImages', JSON.stringify([imgToSave, ...current]));
+                      }
+                      addLog('Saved to gallery.', 'success');
+                    }}
                     onShare={async (img) => {
                       const imgToShare = img || (Array.isArray(resultImage) ? resultImage[0] : resultImage);
                       if (!imgToShare) return;

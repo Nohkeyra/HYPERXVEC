@@ -68,13 +68,14 @@ export function useGeneration(
             apiGenerateImage(enhancedPrompt, model, basePrompt, negativePrompt, uploadedImage || undefined)
           )
         );
-        setResultImage(batchResults);
-        batchResults.forEach(img => addToHistory(img, enhancedPrompt, preset?.name || 'Batch Variation'));
+        const batchImages = batchResults.map(({ image }) => image);
+        setResultImage(batchImages);
+        batchImages.forEach(img => addToHistory(img, enhancedPrompt, preset?.name || 'Batch Variation'));
         addLog('Batch Synthesis Complete: 4 variations constructed.', 'success');
       } else {
         const result = await apiGenerateImage(enhancedPrompt, model, basePrompt, negativePrompt, uploadedImage || undefined);
-        setResultImage(result);
-        addToHistory(result, enhancedPrompt, preset?.name || 'Custom');
+        setResultImage(result.image);
+        addToHistory(result.image, enhancedPrompt, preset?.name || 'Custom');
         addLog('Synthesis Complete: Visual asset constructed.', 'success');
       }
 

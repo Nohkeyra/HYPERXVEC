@@ -193,7 +193,7 @@ export const SynthesisControls: React.FC<SynthesisControlsProps> = ({
 
         {/* Designer Controls (Conditional) */}
       <AnimatePresence>
-        {(activeTab === 'logo design' || selectedModel === 'gemini-3-pro-image') && (
+        {(activeTab === 'logo design' || selectedModel === 'gemini') && (
           <motion.div
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
@@ -226,7 +226,7 @@ export const SynthesisControls: React.FC<SynthesisControlsProps> = ({
                 </div>
               </>
             )}
-            {selectedModel === 'gemini-3-pro-image' && (
+            {selectedModel === 'gemini' && (
               <div className="flex-1 min-w-[140px]">
                 <label className="text-[8px] font-bold uppercase tracking-widest opacity-40 mb-1 block">Image Size</label>
                 <select 
