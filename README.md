@@ -73,3 +73,4 @@ To build the APK, you must follow these steps precisely to ensure the latest cod
 - Select **Auto Router** in the app to choose the image provider from your prompt rules and instructions.
 - Provider order can include Seedream, NVIDIA NIM, Cloudflare SDXL, Pollinations, AI Horde, and Hugging Face.
 - Keep provider secrets in `.env`, not in the APK or frontend code.
+# Trigger build Fri Mar  6 16:08:07 +08 2026
