@@ -56,6 +56,7 @@ export const Viewport: React.FC<ViewportProps> = ({
   fileInputRef
 }) => {
   const currentModel = modelOptions.find(m => m.id === selectedModel);
+  const isImageResult = (img: string) => img.startsWith('data:image') || img.startsWith('http') || img.startsWith('blob:');
 
   return (
     <motion.div 
@@ -221,10 +222,33 @@ export const Viewport: React.FC<ViewportProps> = ({
                   </div>
                 ))}
               </div>
+            ) : !Array.isArray(resultImage) && !isImageResult(resultImage) ? (
+              <div className="w-full h-full flex items-center justify-center p-8 overflow-auto">
+                <div className="max-w-2xl w-full bg-black/40 backdrop-blur-md border border-white/10 rounded-2xl p-8 shadow-2xl">
+                  <div className="flex items-center gap-3 mb-6 border-b border-white/10 pb-4">
+                    <Zap className="text-accent w-5 h-5" />
+                    <h3 className="text-xs font-mono text-accent uppercase tracking-[0.3em]">Text Synthesis Engine</h3>
+                  </div>
+                  <div className="text-sm md:text-base font-mono text-white/90 leading-relaxed whitespace-pre-wrap">
+                    {resultImage}
+                  </div>
+                  <div className="mt-8 pt-4 border-t border-white/10 flex justify-between items-center">
+                    <span className="text-[8px] font-mono text-white/40 uppercase tracking-widest">Model: {currentModel?.label}</span>
+                    <button 
+                      onClick={() => {
+                        navigator.clipboard.writeText(resultImage as string);
+                      }}
+                      className="text-[10px] font-mono text-accent hover:underline uppercase tracking-widest"
+                    >
+                      Copy to Clipboard
+                    </button>
+                  </div>
+                </div>
+              </div>
             ) : (
               <>
                 <img 
-                  src={isHoldingCompare && uploadedImage ? uploadedImage : resultImage} 
+                  src={isHoldingCompare && uploadedImage ? uploadedImage : (Array.isArray(resultImage) ? resultImage[0] : resultImage)} 
                   alt="Result" 
                   className="max-w-full max-h-full h-auto object-contain bg-black/5 pointer-events-none select-none" 
                 />

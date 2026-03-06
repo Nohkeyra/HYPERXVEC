@@ -61,7 +61,14 @@ export const PresetPanel: React.FC<PresetPanelProps> = ({ categories, selectedPr
                     </span>
                   </div>
                   {isUsed && (
-                    <CheckCircle2 size={12} className="text-accent flex-shrink-0 mr-2 opacity-50" />
+                    <motion.div
+                      initial={{ scale: 0, rotate: -45 }}
+                      animate={{ scale: 1, rotate: 0 }}
+                      transition={{ type: "spring", stiffness: 300, damping: 20 }}
+                      className="flex-shrink-0 mr-2"
+                    >
+                      <CheckCircle2 size={12} className="text-accent opacity-50" />
+                    </motion.div>
                   )}
                 </motion.button>
               );

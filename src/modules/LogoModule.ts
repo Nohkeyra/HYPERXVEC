@@ -1,6 +1,7 @@
 import { ModuleStrategy, GenerationContext } from "./types";
 import { Preset, PresetCategory } from "../presets";
 import { ConditionEngine } from "../core/ConditionEngine";
+import { GLOBAL_NEGATIVE_PROMPT } from "../constants";
 
 export const LOGO_PRESETS: PresetCategory[] = [
   {
@@ -110,13 +111,16 @@ export const LogoModule: ModuleStrategy = {
   name: 'Logo Design',
   
   constructPrompt: (context: GenerationContext) => {
-    const { prompt, preset, base64Image, strictMode, isIllustrated, isSubjectOnly, selectedPalette } = context;
+    const { prompt, preset, base64Image, strictMode, isIllustrated, isSubjectOnly, selectedPalette, logoType, logoLayout } = context;
     
     const usePalette = selectedPalette && selectedPalette.name !== 'Default';
     let colorRule = "8. Monochrome-first logic: The design must work in black and white. High contrast.";
     if (usePalette && selectedPalette) {
       colorRule = `8. Color Palette Enforcement: STRICTLY USE ONLY THESE COLORS: ${selectedPalette.name} (${selectedPalette.colors.join(', ')}). Do not use default black/white unless specified in the palette.`;
     }
+
+    const typeRule = logoType ? `9. LOGO TYPE DNA: ${logoType}` : "";
+    const layoutRule = logoLayout ? `10. LOGO LAYOUT DNA: ${logoLayout}` : "";
 
     // Find the category for this preset
     const categoryObj = LOGO_PRESETS.find(c => c.presets.some(p => p.name === preset.name));
@@ -132,6 +136,8 @@ export const LogoModule: ModuleStrategy = {
 6. TECHNICAL FINISH: Razor-sharp vector edges. Solid color blocking. No gradients (unless Category 8). No shadows. No 3D rendering.
 7. LINGUISTIC PROCESSING (CRITICAL): Treat text as a structured linguistic system, not just a visual shape. Use specialized font tokens encoded through a variational autoencoder (VAE) to represent the fundamental characteristics of each character. Do not attempt to "paint" letters from random noise.
 ${colorRule}
+${typeRule}
+${layoutRule}
     `;
 
     let finalPrompt = `${logoRules}\n\nStyle Details: ${preset.basePrompt}`;
@@ -160,8 +166,7 @@ ${colorRule}
 
   constructNegativePrompt: (context: GenerationContext) => {
     const { preset } = context;
-    const globalNegative = "photorealistic, 3d render, shadows, blurry, gradients, messy lines, realistic textures, grainy, depth of field, photography, background scenery, mockups, person wearing shirt, building signage, paper texture, ink bleed, low resolution, multiple logos on one page, tiny illegible text, reflections";
-    return preset.negativePrompt ? `${preset.negativePrompt}, ${globalNegative}` : globalNegative;
+    return preset.negativePrompt ? `${preset.negativePrompt}, ${GLOBAL_NEGATIVE_PROMPT}` : GLOBAL_NEGATIVE_PROMPT;
   },
 
   shouldSkipTurbo: (context: GenerationContext) => {

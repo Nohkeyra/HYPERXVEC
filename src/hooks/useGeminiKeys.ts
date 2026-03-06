@@ -1,26 +1,27 @@
 import { useState, useEffect } from 'react';
+import { safeLocalStorage } from '../utils/storageUtils';
 
 export function useGeminiKeys(addLog: (msg: string, type?: any) => void) {
   const [geminiKeys, setGeminiKeys] = useState<string[]>(() => {
-    const saved = localStorage.getItem('geminiKeys');
+    const saved = safeLocalStorage.getItem('geminiKeys');
     return saved ? JSON.parse(saved) : [''];
   });
   const [activeKeyIndex, setActiveKeyIndex] = useState<number>(() => {
-    const saved = localStorage.getItem('activeKeyIndex');
+    const saved = safeLocalStorage.getItem('activeKeyIndex');
     return saved ? parseInt(saved, 10) : 0;
   });
 
   useEffect(() => {
-    localStorage.setItem('geminiKeys', JSON.stringify(geminiKeys));
+    safeLocalStorage.setItem('geminiKeys', JSON.stringify(geminiKeys));
   }, [geminiKeys]);
 
   useEffect(() => {
-    localStorage.setItem('activeKeyIndex', activeKeyIndex.toString());
+    safeLocalStorage.setItem('activeKeyIndex', activeKeyIndex.toString());
   }, [activeKeyIndex]);
 
   const getActiveGeminiKey = () => {
     const key = geminiKeys[activeKeyIndex];
-    return key || process.env.GEMINI_API_KEY;
+    return key || process.env.API_KEY || process.env.GEMINI_API_KEY;
   };
 
   const switchToNextKey = () => {

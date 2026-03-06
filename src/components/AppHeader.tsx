@@ -7,8 +7,10 @@ import {
   Layers, 
   Sun, 
   Moon, 
-  Camera 
+  Camera,
+  Hexagon
 } from 'lucide-react';
+import { playClickSound, triggerHapticFeedback } from '../utils/soundUtils';
 
 interface AppHeaderProps {
   isDarkMode: boolean;
@@ -16,9 +18,10 @@ interface AppHeaderProps {
   setShowSettings: (val: boolean) => void;
   setShowLogs: (val: boolean) => void;
   setShowHistory: (val: boolean) => void;
-  setShowGallery: (val: boolean) => void;
   setShowCamera: (val: boolean) => void;
   generationCount: number;
+  activeTab: string;
+  onTabChange: (tab: any) => void;
 }
 
 export const AppHeader: React.FC<AppHeaderProps> = ({
@@ -27,18 +30,29 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
   setShowSettings,
   setShowLogs,
   setShowHistory,
-  setShowGallery,
   setShowCamera,
-  generationCount
+  generationCount,
+  activeTab,
+  onTabChange
 }) => {
+  const tabs = [
+    { id: 'vectorize', label: 'Vectorize' },
+    { id: 'core lettering', label: 'Lettering' },
+    { id: 'logo design', label: 'Logo' },
+    { id: 'image analyzer', label: 'Analyzer' },
+    { id: 'chat', label: 'Assistant' },
+  ];
+
+  const handleButtonClick = (callback: () => void) => {
+    playClickSound();
+    triggerHapticFeedback();
+    callback();
+  };
+
   return (
-    <header className="flex justify-between items-center mb-8 md:mb-12 relative z-50">
-      <div className="flex items-center gap-4 md:gap-6">
-        <div className="relative group">
-          <div className="relative w-10 h-10 md:w-12 md:h-12 bg-bg-secondary ring-1 ring-border-primary rounded-xl flex items-center justify-center shadow-sm">
-            <span className="text-xl md:text-2xl font-black text-accent tracking-tighter italic">V</span>
-          </div>
-        </div>
+    <header className="pull-to-refresh-header flex justify-between items-center mb-8 md:mb-12 relative z-50">
+      <div className="flex items-center gap-3 md:gap-4">
+        <Hexagon className="w-8 h-8 md:w-10 md:h-10 text-accent fill-accent/20" strokeWidth={2.5} />
         <div>
           <h1 className="text-lg md:text-xl font-black uppercase tracking-[0.3em] italic font-serif">VΞCTOR</h1>
           <div className="flex items-center gap-2 mt-1">
@@ -48,90 +62,96 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
         </div>
       </div>
 
+      {/* Desktop Tabs */}
+      <div className="hidden lg:flex items-center gap-1 bg-bg-secondary/50 backdrop-blur-md p-1 rounded-full ring-1 ring-border-primary shadow-sm">
+        {tabs.map((tab) => (
+          <motion.button
+            key={tab.id}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => handleButtonClick(() => onTabChange(tab.id))}
+            className={`px-4 py-2 rounded-full text-[10px] font-bold uppercase tracking-widest transition-all ${
+              activeTab === tab.id 
+                ? 'bg-accent text-bg-primary shadow-lg shadow-accent/20' 
+                : 'text-text-secondary hover:text-text-primary hover:bg-bg-primary/50'
+            }`}
+          >
+            {tab.label}
+          </motion.button>
+        ))}
+      </div>
+
       <div className="flex items-center gap-2 md:gap-4">
         {/* Desktop Controls */}
         <div className="hidden md:flex items-center gap-2 bg-bg-secondary/50 backdrop-blur-md p-1.5 rounded-full ring-1 ring-border-primary shadow-sm">
-          <button 
-            onClick={() => setShowSettings(true)}
+          <motion.button 
+            whileTap={{ scale: 0.9 }}
+            onClick={() => handleButtonClick(() => setShowSettings(true))}
             className="p-2.5 hover:bg-bg-primary rounded-full transition-all group relative text-text-secondary hover:text-text-primary"
             title="System Settings"
           >
             <Settings size={18} className="group-hover:rotate-90 transition-transform duration-500" />
-          </button>
-          <button 
-            onClick={() => setShowLogs(true)}
+          </motion.button>
+          <motion.button 
+            whileTap={{ scale: 0.9 }}
+            onClick={() => handleButtonClick(() => setShowLogs(true))}
             className="p-2.5 hover:bg-bg-primary rounded-full transition-all group relative text-text-secondary hover:text-text-primary"
             title="System Logs"
           >
             <TerminalIcon size={18} />
-          </button>
-          <button 
-            onClick={() => setShowHistory(true)}
+          </motion.button>
+          <motion.button 
+            whileTap={{ scale: 0.9 }}
+            onClick={() => handleButtonClick(() => setShowHistory(true))}
             className="p-2.5 hover:bg-bg-primary rounded-full transition-all group relative text-text-secondary hover:text-text-primary"
             title="Generation History"
           >
             <History size={18} />
-          </button>
-          <button 
-            onClick={() => setShowGallery(true)}
-            className="p-2.5 hover:bg-bg-primary rounded-full transition-all group relative text-text-secondary hover:text-text-primary"
-            title="Image Gallery"
-          >
-            <Layers size={18} />
-            {generationCount > 0 && (
-              <span className="absolute top-1 right-1 w-2 h-2 bg-accent rounded-full ring-2 ring-bg-secondary" />
-            )}
-          </button>
+          </motion.button>
           <div className="w-px h-6 bg-border-primary mx-1" />
-          <button 
-            onClick={() => setIsDarkMode(!isDarkMode)}
+          <motion.button 
+            whileTap={{ scale: 0.9 }}
+            onClick={() => handleButtonClick(() => setIsDarkMode(!isDarkMode))}
             className="p-2.5 hover:bg-bg-primary rounded-full transition-all text-text-secondary hover:text-text-primary"
             title={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
           >
             {isDarkMode ? <Sun size={18} /> : <Moon size={18} />}
-          </button>
+          </motion.button>
         </div>
 
         {/* Mobile Controls */}
         <div className="flex md:hidden items-center gap-1">
-          <button 
-            onClick={() => setShowSettings(true)}
+          <motion.button 
+            whileTap={{ scale: 0.9 }}
+            onClick={() => handleButtonClick(() => setShowSettings(true))}
             className="p-2 hover:bg-bg-secondary rounded-lg transition-all text-text-secondary hover:text-text-primary"
             title="Settings"
           >
             <Settings size={18} />
-          </button>
-          <button 
-            onClick={() => setShowLogs(true)}
+          </motion.button>
+          <motion.button 
+            whileTap={{ scale: 0.9 }}
+            onClick={() => handleButtonClick(() => setShowLogs(true))}
             className="p-2 hover:bg-bg-secondary rounded-lg transition-all text-text-secondary hover:text-text-primary"
             title="Logs"
           >
             <TerminalIcon size={18} />
-          </button>
-          <button 
-            onClick={() => setShowHistory(true)}
+          </motion.button>
+          <motion.button 
+            whileTap={{ scale: 0.9 }}
+            onClick={() => handleButtonClick(() => setShowHistory(true))}
             className="p-2 hover:bg-bg-secondary rounded-lg transition-all text-text-secondary hover:text-text-primary"
             title="History"
           >
             <History size={18} />
-          </button>
-          <button 
-            onClick={() => setShowGallery(true)}
-            className="p-2 hover:bg-bg-secondary rounded-lg transition-all relative text-text-secondary hover:text-text-primary"
-            title="Gallery"
-          >
-            <Layers size={18} />
-            {generationCount > 0 && (
-              <span className="absolute top-1 right-1 w-1.5 h-1.5 bg-accent rounded-full" />
-            )}
-          </button>
-          <button 
-            onClick={() => setIsDarkMode(!isDarkMode)}
+          </motion.button>
+          <motion.button 
+            whileTap={{ scale: 0.9 }}
+            onClick={() => handleButtonClick(() => setIsDarkMode(!isDarkMode))}
             className="p-2 hover:bg-bg-secondary rounded-lg transition-all text-text-secondary hover:text-text-primary"
             title="Toggle Theme"
           >
             {isDarkMode ? <Sun size={18} /> : <Moon size={18} />}
-          </button>
+          </motion.button>
         </div>
       </div>
     </header>

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { VECTOR_PRESETS, TYPOGRAPHY_PRESETS, Preset } from '../presets';
-import { LOGO_PRESETS } from '../modules/LogoModule';
+import { Preset } from '../presets';
+import { safeLocalStorage } from '../utils/storageUtils';
 
 export interface HistoryItem {
   id: string;
@@ -12,12 +12,12 @@ export interface HistoryItem {
 
 export function useHistory(addLog: (msg: string, type?: any) => void) {
   const [history, setHistory] = useState<HistoryItem[]>(() => {
-    const saved = localStorage.getItem('genHistory');
+    const saved = safeLocalStorage.getItem('genHistory');
     return saved ? JSON.parse(saved) : [];
   });
 
   useEffect(() => {
-    localStorage.setItem('genHistory', JSON.stringify(history));
+    safeLocalStorage.setItem('genHistory', JSON.stringify(history));
   }, [history]);
 
   const addToHistory = (image: string, prompt: string, presetName: string) => {
@@ -33,6 +33,7 @@ export function useHistory(addLog: (msg: string, type?: any) => void) {
 
   const clearHistory = () => {
     setHistory([]);
+    safeLocalStorage.removeItem('genHistory');
     addLog('Generation history cleared', 'info');
   };
 

@@ -1,9 +1,14 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Send, Paperclip, X, User, Bot, Loader2, FileText, Image as ImageIcon, Camera } from 'lucide-react';
+import { Send, Paperclip, X, User, Bot, Loader2, FileText, Image as ImageIcon, Camera, FileArchive, Mic, Plus, Sparkles } from 'lucide-react';
 import Markdown from 'react-markdown';
-import { CameraModal } from './CameraModal';
 import { VectorAssistantApi, ChatMessage } from '../services/vectorAssistantService';
+import { VECTOR_PRESETS, TYPOGRAPHY_PRESETS } from '../presets';
+import { LOGO_PRESETS } from '../modules/LogoModule';
+import { modelRegistry } from '../services/modelRegistry';
+import { safeLocalStorage } from '../utils/storageUtils';
+import { playClickSound, triggerHapticFeedback } from '../utils/soundUtils';
+import { apiUrl } from '../utils/apiBase';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -12,43 +17,82 @@ interface Message {
 }
 
 interface ChatPanelProps {
-  onClose: () => void;
   addLog: (message: string, type?: 'info' | 'success' | 'error' | 'process') => void;
   apiKey: string;
 }
 
-export const ChatPanel: React.FC<ChatPanelProps> = React.memo(({ onClose, addLog, apiKey }) => {
-  const [messages, setMessages] = useState<Message[]>([
-    { role: 'assistant', text: 'VΞCTOR Assistant online. Powered by GPT-OSS 120B. How can I assist with your visual synthesis today?' }
-  ]);
+export const ChatPanel: React.FC<ChatPanelProps> = React.memo(({ addLog, apiKey }) => {
+  const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [showCamera, setShowCamera] = useState(false);
   const [attachedFiles, setAttachedFiles] = useState<{ name: string; type: string; data: string }[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const modelName = "GPT-OSS 120B";
+
+  const handleButtonClick = (callback: () => void) => {
+    playClickSound();
+    triggerHapticFeedback();
+    callback();
+  };
+
   useEffect(() => {
-    if (scrollRef.current) {
-      setTimeout(() => {
-        scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
-      }, 100);
-    }
+    // Initial message removed to show Hero state
+  }, []);
+
+  useEffect(() => {
+    // Scroll logic handled by flex-col-reverse
   }, [messages, isLoading]);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
-    files.forEach((file: any) => {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setAttachedFiles(prev => [...prev, {
-          name: file.name,
-          type: file.type,
-          data: reader.result as string
-        }]);
-      };
-      reader.readAsDataURL(file);
-    });
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []) as File[];
+    
+    for (const file of files) {
+      if (file.name.toLowerCase().endsWith('.zip')) {
+        setIsLoading(true);
+        addLog(`Analyzing ZIP: ${file.name}...`, 'process');
+        
+        const formData = new FormData();
+        formData.append('file', file);
+        
+        try {
+          const res = await fetch(apiUrl('/api/analyze-zip'), {
+            method: 'POST',
+            body: formData
+          });
+          
+          if (!res.ok) {
+            const errData = await res.json();
+            throw new Error(errData.error || 'ZIP analysis failed');
+          }
+          
+          const data = await res.json();
+          setAttachedFiles(prev => [...prev, {
+            name: file.name,
+            type: 'application/zip',
+            data: data.content // Store extracted text content
+          }]);
+          addLog(`ZIP analysis complete: ${data.fileCount} files extracted.`, 'success');
+        } catch (err: any) {
+          console.error('ZIP Analysis Error:', err);
+          addLog(`ZIP analysis failed: ${err.message}`, 'error');
+        } finally {
+          setIsLoading(false);
+        }
+      } else {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setAttachedFiles(prev => [...prev, {
+            name: file.name,
+            type: file.type,
+            data: reader.result as string
+          }]);
+        };
+        reader.readAsDataURL(file);
+      }
+    }
+    
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
@@ -56,51 +100,98 @@ export const ChatPanel: React.FC<ChatPanelProps> = React.memo(({ onClose, addLog
     setAttachedFiles(prev => prev.filter((_, i) => i !== index));
   };
 
-  const handleSend = async () => {
-    if (!input.trim() && attachedFiles.length === 0) return;
+  const handleSend = async (text: string = input) => {
+    if (!text.trim() && attachedFiles.length === 0) return;
     
-    if (!apiKey && !localStorage.getItem('nvidiaApiKey')) {
-      addLog('API key required for Vector Assistant. Please configure BytePlus (Node_02) or NVIDIA (Node_03) in Settings.', 'error');
+    if (!apiKey) {
+      addLog('API key required for Vector Assistant. Please configure BytePlus (Node_02) in Settings.', 'error');
       return;
     }
 
     const userMessage: Message = {
       role: 'user',
-      text: input,
+      text: text,
       files: attachedFiles.length > 0 ? [...attachedFiles] : undefined
     };
 
-    setMessages(prev => [...prev, userMessage]);
+    const newMessages = [...messages, userMessage];
+    setMessages(newMessages);
     setInput('');
     setAttachedFiles([]);
     setIsLoading(true);
 
     try {
+      // Construct dynamic system prompt with app knowledge
+      const availableModels = Object.values(modelRegistry).map(m => `${m.label} (${m.provider})`).join(', ');
+      const vectorPresets = VECTOR_PRESETS.flatMap(c => c.presets.map(p => p.name)).join(', ');
+      const typographyPresets = TYPOGRAPHY_PRESETS.flatMap(c => c.presets.map(p => p.name)).join(', ');
+      const logoPresets = LOGO_PRESETS.flatMap(c => c.presets.map(p => p.name)).join(', ');
+
+      const systemPrompt = `You are VΞCTOR Assistant, a specialized artificial intelligence assistant for a high-end vector design and image synthesis platform. 
+      
+      APP ARCHITECTURE:
+      - Framework: React 18 + Vite
+      - Styling: Tailwind CSS
+      - Animation: Framer Motion
+      - Mobile: Capacitor (iOS/Android)
+      - State: React Hooks (useState, useEffect, etc.)
+
+      CAPABILITIES:
+      1. Vector Art Generation: Uses models like Gemini, NVIDIA Flux, and Seedream (BytePlus) to generate flat, clean vector art.
+      2. Typography Art: Generates artistic text and lettering.
+      3. Logo Design: Creates professional logos with specific constraints (minimalist, geometric, etc.).
+      4. Image Analysis: Extracts "Visual DNA" from uploaded images to create new style presets.
+      5. Chat: You are this chat interface.
+
+      AVAILABLE MODELS:
+      ${availableModels}
+      (Note: Seedream 4.0 and 4.5 are BytePlus models optimized for high-fidelity generation and they understand all presets below.)
+
+      AVAILABLE PRESETS (Styles):
+      - Vector Art: ${vectorPresets}
+      - Typography: ${typographyPresets}
+      - Logo Design: ${logoPresets}
+
+      YOUR ROLE:
+      - You are technical, precise, and helpful. Speak in a concise, terminal-like manner.
+      - Analyze design requests and suggest specific presets from the list above.
+      - If the user asks about "Seedream", confirm it is a supported model family (4.0 & 4.5) and is fully integrated with all presets.
+      - You can analyze ZIP files uploaded by the user (text content is extracted for you).
+      - EXPERT DEBUGGER: If the user provides error logs, stack traces, or code snippets, analyze them deeply and provide specific, actionable fixes for this React/Vite codebase.`;
+
       // Prepare messages for the API
       const apiMessages: ChatMessage[] = [
         { 
           role: 'system', 
-          content: "You are VΞCTOR Assistant, a specialized artificial intelligence assistant for a high-end vector design and image synthesis platform. You are powered by the GPT-OSS 120B model via BytePlus ARK. You are technical, precise, and helpful. You speak in a concise, terminal-like manner. Every letter is geometry. Every style is a rule system. You can analyze design requests, suggest styles, and help users with the platform's features."
+          content: systemPrompt
         }
       ];
 
       // Add history (limit to last 10 messages for context)
-      const history = messages.slice(-10).map(m => ({
-        role: m.role === 'assistant' ? 'assistant' : 'user',
-        content: m.text
-      }));
+      const history = newMessages.slice(-10).map(m => {
+        let content = m.text;
+        if (m.files && m.files.length > 0) {
+          const zipFiles = m.files.filter(f => f.type === 'application/zip');
+          const otherFiles = m.files.filter(f => f.type !== 'application/zip');
+          
+          if (zipFiles.length > 0) {
+            // Truncate content to avoid payload size issues (5k chars per file max)
+            content += "\n\n[EXTRACTED ZIP CONTENT]:\n" + zipFiles.map(f => `--- ZIP: ${f.name} ---\n${f.data.substring(0, 5000)}${f.data.length > 5000 ? '... (truncated)' : ''}`).join('\n\n');
+          }
+          
+          if (otherFiles.length > 0) {
+            content += "\n\n[User attached files: " + otherFiles.map(f => f.name).join(', ') + "]";
+            content += "\n(Note: Multimodal file analysis is handled by the Gemini node.)";
+          }
+        }
+        return {
+          role: m.role === 'assistant' ? 'assistant' : 'user',
+          content: content || " " // Ensure content is not empty
+        };
+      });
 
       apiMessages.push(...(history as ChatMessage[]));
       
-      // Add current user message
-      let userContent = userMessage.text;
-      if (userMessage.files && userMessage.files.length > 0) {
-        userContent += "\n\n[User attached files: " + userMessage.files.map(f => f.name).join(', ') + "]";
-        userContent += "\n(Note: Multimodal file analysis is handled by the Gemini node, please use the Image Analyzer for deep visual inspection.)";
-      }
-      
-      apiMessages.push({ role: 'user', content: userContent });
-
       const responseText = await VectorAssistantApi.chat(apiMessages, apiKey || '');
       
       setMessages(prev => [...prev, { role: 'assistant', text: responseText || 'I encountered an issue processing that request.' }]);
@@ -113,107 +204,119 @@ export const ChatPanel: React.FC<ChatPanelProps> = React.memo(({ onClose, addLog
     }
   };
 
+  const suggestions = [
+    { icon: <ImageIcon size={16} className="text-yellow-400" />, label: 'Create image', prompt: 'Create a vector art image of ' },
+    { icon: <FileText size={16} className="text-blue-400" />, label: 'Help me learn', prompt: 'Explain how vector synthesis works' },
+    { icon: <Bot size={16} className="text-green-400" />, label: 'Analyze code', prompt: 'Analyze this code snippet: ' },
+    { icon: <Sparkles size={16} className="text-purple-400" />, label: 'Boost my day', prompt: 'Give me a creative design idea' },
+  ];
+
   return (
-    <div className="w-full max-w-xl h-[80vh] bg-bg-secondary border border-border-primary rounded-[32px] shadow-2xl flex flex-col overflow-hidden">
-      {/* Header */}
-      <div className="flex justify-between items-center p-6 border-b border-border-primary shrink-0">
+    <div className="fixed inset-0 z-40 md:relative md:inset-auto md:w-full md:h-full flex flex-col bg-black overflow-hidden pb-[calc(110px+env(safe-area-inset-bottom))] md:pb-0 pt-[env(safe-area-inset-top)]">
+      {/* Header - Minimal */}
+      <div className="flex justify-between items-center p-4 shrink-0 z-10">
         <div className="flex items-center gap-4">
-          <div className="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center">
-            <Bot size={20} className="text-accent" />
+          <div className="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center">
+            <Bot size={16} className="text-white" />
           </div>
-          <div>
-            <h2 className="text-sm font-bold uppercase tracking-[0.2em]">VΞCTOR Assistant</h2>
-            <p className="text-[8px] font-mono opacity-40 uppercase tracking-widest">GPT-OSS 120B Neural Interface</p>
-          </div>
+          <span className="text-white font-medium">Gemini</span>
         </div>
-        <button onClick={onClose} className="p-2 hover:bg-bg-primary rounded-full transition-colors">
-          <X size={20} />
-        </button>
+        <div className="w-8 h-8 rounded-full bg-zinc-800 overflow-hidden">
+             <User size={32} className="text-zinc-400 p-1" />
+        </div>
       </div>
 
-      {/* Messages */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar">
-        {messages.map((msg, i) => (
-          <motion.div
-            key={i}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className={`flex gap-4 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}
-          >
-            <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
-              msg.role === 'user' ? 'bg-accent text-bg-primary' : 'bg-bg-primary border border-border-primary text-accent'
-            }`}>
-              {msg.role === 'user' ? <User size={16} /> : <Bot size={16} />}
-            </div>
-            <div className={`max-w-[80%] space-y-2 ${msg.role === 'user' ? 'items-end' : ''}`}>
-              <div className={`p-4 rounded-2xl text-sm leading-relaxed ${
-                msg.role === 'user' ? 'bg-accent/10 border border-accent/20 text-text-primary' : 'bg-bg-primary border border-border-primary text-text-primary'
-              }`}>
-                <div className="markdown-body">
-                  <Markdown>{msg.text}</Markdown>
+      {/* Messages Area */}
+      <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto p-4 custom-scrollbar flex flex-col-reverse">
+        {messages.length > 0 ? (
+          <>
+            {messages.slice().reverse().map((msg, i) => (
+              <motion.div
+                key={i}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className={`flex gap-4 mb-6 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}
+              >
+                {msg.role !== 'user' && (
+                  <div className="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center shrink-0 mt-1">
+                    <Bot size={16} className="text-white" />
+                  </div>
+                )}
+                <div className={`max-w-[85%] space-y-2 ${msg.role === 'user' ? 'items-end' : ''}`}>
+                  <div className={`text-base leading-relaxed ${
+                    msg.role === 'user' ? 'bg-zinc-800 text-white px-5 py-3 rounded-[24px] rounded-tr-sm' : 'text-zinc-100'
+                  }`}>
+                    <div className="markdown-body">
+                      <Markdown>{msg.text}</Markdown>
+                    </div>
+                  </div>
+                  {msg.files && (
+                    <div className="flex flex-wrap gap-2">
+                      {msg.files.map((file, fi) => (
+                        <div key={fi} className="flex items-center gap-2 px-3 py-1.5 bg-zinc-800 rounded-lg text-xs text-zinc-300">
+                          {file.type.startsWith('image/') ? <ImageIcon size={12} /> : file.type === 'application/zip' ? <FileArchive size={12} /> : <FileText size={12} />}
+                          {file.name}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            ))}
+            {isLoading && (
+              <div className="flex gap-4 mb-6">
+                <div className="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center shrink-0">
+                  <Bot size={16} className="text-white" />
+                </div>
+                <div className="p-3">
+                  <Loader2 size={20} className="animate-spin text-white" />
                 </div>
               </div>
-              {msg.files && (
-                <div className="flex flex-wrap gap-2">
-                  {msg.files.map((file, fi) => (
-                    <div key={fi} className="flex items-center gap-2 px-3 py-1.5 bg-bg-primary border border-border-primary rounded-lg text-[10px] font-mono opacity-60">
-                      {file.type.startsWith('image/') ? <ImageIcon size={12} /> : <FileText size={12} />}
-                      {file.name}
-                    </div>
-                  ))}
-                </div>
-              )}
+            )}
+          </>
+        ) : (
+          <div className="flex flex-col justify-end h-full pb-8">
+            <div className="mb-8">
+              <h1 className="text-4xl md:text-5xl font-medium text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-purple-400 to-red-400 mb-2">Hi there</h1>
+              <h2 className="text-4xl md:text-5xl font-medium text-zinc-500">Where should we start?</h2>
             </div>
-          </motion.div>
-        ))}
-        {isLoading && (
-          <div className="flex gap-4">
-            <div className="w-8 h-8 rounded-lg bg-bg-primary border border-border-primary text-accent flex items-center justify-center">
-              <Bot size={16} />
-            </div>
-            <div className="p-4 bg-bg-primary border border-border-primary rounded-2xl">
-              <Loader2 size={16} className="animate-spin text-accent" />
+            <div className="flex flex-col gap-3 items-start">
+              {suggestions.map((s, i) => (
+                <button 
+                  key={i}
+                  onClick={() => { setInput(s.prompt); }}
+                  className="flex items-center gap-3 px-5 py-3 bg-zinc-900 hover:bg-zinc-800 rounded-full transition-colors text-zinc-200 text-sm"
+                >
+                  {s.icon}
+                  {s.label}
+                </button>
+              ))}
             </div>
           </div>
         )}
       </div>
 
-      {/* Input Area */}
-      <div className="p-6 border-t border-border-primary bg-bg-primary/50 shrink-0">
+      {/* Floating Input Area */}
+      <div className="px-4 pb-2 shrink-0 z-20">
         {attachedFiles.length > 0 && (
-          <div className="flex flex-wrap gap-2 mb-4">
+          <div className="flex flex-wrap gap-2 mb-2 px-2">
             {attachedFiles.map((file, i) => (
-              <div key={i} className="group relative">
-                <div className="flex items-center gap-2 px-3 py-2 bg-bg-secondary border border-border-primary rounded-xl text-[10px] font-mono pr-8">
-                  {file.type.startsWith('image/') ? <ImageIcon size={12} className="text-accent" /> : <FileText size={12} className="text-accent" />}
-                  <span className="truncate max-w-[100px]">{file.name}</span>
-                </div>
-                <button
-                  onClick={() => removeFile(i)}
-                  className="absolute right-1 top-1/2 -translate-y-1/2 p-1 text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
-                >
-                  <X size={12} />
-                </button>
+              <div key={i} className="flex items-center gap-2 px-3 py-1 bg-zinc-800 rounded-full text-xs text-zinc-300">
+                <span className="truncate max-w-[100px]">{file.name}</span>
+                <button onClick={() => removeFile(i)} className="text-zinc-500 hover:text-white"><X size={12} /></button>
               </div>
             ))}
           </div>
         )}
-        <div className="flex gap-4">
+        
+        <div className="bg-zinc-800 rounded-[32px] flex items-center p-2 pr-2 gap-2 shadow-lg border border-zinc-700/50">
           <button
-            onClick={() => setShowCamera(true)}
-            className="w-12 h-12 rounded-xl bg-bg-secondary border border-border-primary flex flex-col items-center justify-center text-text-secondary hover:border-accent hover:text-accent transition-all group/cam"
-            title="Take Photo"
+            onClick={() => handleButtonClick(() => fileInputRef.current?.click())}
+            className="w-10 h-10 rounded-full bg-zinc-700/50 flex items-center justify-center text-zinc-200 hover:bg-zinc-600 transition-colors shrink-0"
           >
-            <Camera size={20} className="group-hover/cam:scale-110 transition-transform" />
-            <span className="text-[7px] font-bold uppercase tracking-tighter mt-0.5 opacity-60 group-hover/cam:opacity-100">Cam</span>
+            <Plus size={20} />
           </button>
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            className="w-12 h-12 rounded-xl bg-bg-secondary border border-border-primary flex items-center justify-center text-text-secondary hover:border-accent hover:text-accent transition-all"
-            title="Attach File"
-          >
-            <Paperclip size={20} />
-          </button>
+          
           <input
             type="file"
             ref={fileInputRef}
@@ -221,37 +324,33 @@ export const ChatPanel: React.FC<ChatPanelProps> = React.memo(({ onClose, addLog
             multiple
             className="hidden"
           />
-          <div className="flex-1 relative">
-            <input
-              type="text"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-              placeholder="Ask VΞCTOR Assistant..."
-              className="w-full h-12 bg-bg-secondary border border-border-primary rounded-xl px-4 text-sm focus:outline-none focus:border-accent transition-colors"
-            />
-            <button
-              onClick={handleSend}
-              disabled={isLoading || (!input.trim() && attachedFiles.length === 0)}
-              className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-accent text-bg-primary rounded-lg flex items-center justify-center hover:brightness-110 disabled:opacity-50 transition-all"
+
+          <input
+            type="text"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleButtonClick(() => handleSend())}
+            placeholder="Ask Gemini"
+            className="flex-1 bg-transparent border-none outline-none text-white placeholder-zinc-400 text-base px-2 h-10"
+          />
+
+          {input.trim() || attachedFiles.length > 0 ? (
+             <button
+              onClick={() => handleButtonClick(() => handleSend())}
+              className="w-10 h-10 rounded-full bg-white text-black flex items-center justify-center hover:bg-zinc-200 transition-colors shrink-0"
             >
-              <Send size={16} />
+              <Send size={18} />
             </button>
-          </div>
+          ) : (
+             <button
+              onClick={() => handleButtonClick(() => fileInputRef.current?.click())}
+              className="w-10 h-10 rounded-full hover:bg-zinc-700/50 text-zinc-200 flex items-center justify-center transition-colors shrink-0"
+            >
+              <Mic size={20} />
+            </button>
+          )}
         </div>
       </div>
-      <CameraModal 
-        isOpen={showCamera}
-        onClose={() => setShowCamera(false)}
-        onCapture={(imageData) => {
-          setAttachedFiles(prev => [...prev, {
-            name: `camera-capture-${Date.now()}.jpg`,
-            type: 'image/jpeg',
-            data: imageData
-          }]);
-          addLog('Camera capture attached to chat.', 'success');
-        }}
-      />
     </div>
   );
 });

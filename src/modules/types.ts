@@ -11,6 +11,8 @@ export interface GenerationContext {
   isIllustrated?: boolean;
   isSubjectOnly?: boolean;
   selectedPalette?: ColorPalette | null;
+  logoType?: string;
+  logoLayout?: string;
 }
 
 export interface ModuleStrategy {

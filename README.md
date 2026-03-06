@@ -67,3 +67,9 @@ To build the APK, you must follow these steps precisely to ensure the latest cod
 -   `src/services/imageService.ts`: Main entry point for image generation.
 -   `src/App.tsx`: Main UI and logic.
 -   `android/`: Native Android project files.
+
+
+## Auto Router
+- Select **Auto Router** in the app to choose the image provider from your prompt rules and instructions.
+- Provider order can include Seedream, NVIDIA NIM, Cloudflare SDXL, Pollinations, AI Horde, and Hugging Face.
+- Keep provider secrets in `.env`, not in the APK or frontend code.

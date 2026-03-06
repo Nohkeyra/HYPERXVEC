@@ -21,6 +21,11 @@ export const PullToRefresh: React.FC<PullToRefreshProps> = ({ onRefresh, childre
 
   const handleTouchStart = useCallback((e: TouchEvent) => {
     if (disabled || isRefreshing || window.scrollY > 0) return;
+    
+    // Only allow pull to refresh from the header
+    const target = e.target as HTMLElement;
+    if (!target.closest('.pull-to-refresh-header')) return;
+
     startY.current = e.touches[0].pageY;
     isPulling.current = true;
   }, [disabled, isRefreshing]);

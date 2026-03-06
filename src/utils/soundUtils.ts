@@ -1,75 +1,105 @@
+let audioContext: AudioContext | null = null;
+
+const getAudioContext = () => {
+  if (!audioContext) {
+    audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+  }
+  if (audioContext.state === 'suspended') {
+    audioContext.resume();
+  }
+  return audioContext;
+};
+
 export const playClickSound = () => {
-  const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-  const oscillator = audioContext.createOscillator();
-  const gainNode = audioContext.createGain();
+  try {
+    const ctx = getAudioContext();
+    const oscillator = ctx.createOscillator();
+    const gainNode = ctx.createGain();
 
-  oscillator.type = 'sine';
-  oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
-  oscillator.frequency.exponentialRampToValueAtTime(300, audioContext.currentTime + 0.1);
+    oscillator.type = 'square';
+    oscillator.frequency.setValueAtTime(1200, ctx.currentTime);
+    oscillator.frequency.exponentialRampToValueAtTime(600, ctx.currentTime + 0.05);
 
-  gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
-  gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1);
+    gainNode.gain.setValueAtTime(0.1, ctx.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.05);
 
-  oscillator.connect(gainNode);
-  gainNode.connect(audioContext.destination);
+    oscillator.connect(gainNode);
+    gainNode.connect(ctx.destination);
 
-  oscillator.start();
-  oscillator.stop(audioContext.currentTime + 0.1);
+    oscillator.start();
+    oscillator.stop(ctx.currentTime + 0.05);
+  } catch (e) {
+    console.error("Audio play failed", e);
+  }
 };
 
 export const playGenerateSound = () => {
-  const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-  
-  // Oscillator 1: High tech charge up
-  const osc1 = audioContext.createOscillator();
-  const gain1 = audioContext.createGain();
-  osc1.type = 'sawtooth';
-  osc1.frequency.setValueAtTime(200, audioContext.currentTime);
-  osc1.frequency.linearRampToValueAtTime(800, audioContext.currentTime + 0.3);
-  
-  gain1.gain.setValueAtTime(0.1, audioContext.currentTime);
-  gain1.gain.linearRampToValueAtTime(0, audioContext.currentTime + 0.3);
+  try {
+    const ctx = getAudioContext();
+    
+    // Oscillator 1: High tech charge up
+    const osc1 = ctx.createOscillator();
+    const gain1 = ctx.createGain();
+    osc1.type = 'sawtooth';
+    osc1.frequency.setValueAtTime(200, ctx.currentTime);
+    osc1.frequency.linearRampToValueAtTime(800, ctx.currentTime + 0.3);
+    
+    gain1.gain.setValueAtTime(0.1, ctx.currentTime);
+    gain1.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.3);
 
-  // Oscillator 2: Low thud
-  const osc2 = audioContext.createOscillator();
-  const gain2 = audioContext.createGain();
-  osc2.type = 'sine';
-  osc2.frequency.setValueAtTime(100, audioContext.currentTime);
-  osc2.frequency.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
-  
-  gain2.gain.setValueAtTime(0.5, audioContext.currentTime);
-  gain2.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+    // Oscillator 2: Low thud
+    const osc2 = ctx.createOscillator();
+    const gain2 = ctx.createGain();
+    osc2.type = 'sine';
+    osc2.frequency.setValueAtTime(100, ctx.currentTime);
+    osc2.frequency.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.5);
+    
+    gain2.gain.setValueAtTime(0.5, ctx.currentTime);
+    gain2.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.5);
 
-  osc1.connect(gain1);
-  osc2.connect(gain2);
-  
-  gain1.connect(audioContext.destination);
-  gain2.connect(audioContext.destination);
+    osc1.connect(gain1);
+    osc2.connect(gain2);
+    
+    gain1.connect(ctx.destination);
+    gain2.connect(ctx.destination);
 
-  osc1.start();
-  osc2.start();
-  
-  osc1.stop(audioContext.currentTime + 0.3);
-  osc2.stop(audioContext.currentTime + 0.5);
+    osc1.start();
+    osc2.start();
+    
+    osc1.stop(ctx.currentTime + 0.3);
+    osc2.stop(ctx.currentTime + 0.5);
+  } catch (e) {
+    console.error("Audio play failed", e);
+  }
 };
 
 export const playSuccessSound = () => {
-  const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-  
-  const osc = audioContext.createOscillator();
-  const gain = audioContext.createGain();
-  
-  osc.type = 'triangle';
-  osc.frequency.setValueAtTime(440, audioContext.currentTime);
-  osc.frequency.setValueAtTime(554.37, audioContext.currentTime + 0.1); // C#
-  osc.frequency.setValueAtTime(659.25, audioContext.currentTime + 0.2); // E
-  
-  gain.gain.setValueAtTime(0.1, audioContext.currentTime);
-  gain.gain.linearRampToValueAtTime(0, audioContext.currentTime + 0.4);
-  
-  osc.connect(gain);
-  gain.connect(audioContext.destination);
-  
-  osc.start();
-  osc.stop(audioContext.currentTime + 0.4);
+  try {
+    const ctx = getAudioContext();
+    
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(440, ctx.currentTime);
+    osc.frequency.setValueAtTime(554.37, ctx.currentTime + 0.1); // C#
+    osc.frequency.setValueAtTime(659.25, ctx.currentTime + 0.2); // E
+    
+    gain.gain.setValueAtTime(0.1, ctx.currentTime);
+    gain.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.4);
+    
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    
+    osc.start();
+    osc.stop(ctx.currentTime + 0.4);
+  } catch (e) {
+    console.error("Audio play failed", e);
+  }
+};
+
+export const triggerHapticFeedback = () => {
+  if (navigator.vibrate) {
+    navigator.vibrate(10);
+  }
 };

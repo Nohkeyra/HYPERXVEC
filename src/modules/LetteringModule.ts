@@ -1,5 +1,6 @@
 import { ModuleStrategy, GenerationContext } from "./types";
 import { ConditionEngine } from "../core/ConditionEngine";
+import { GLOBAL_NEGATIVE_PROMPT } from "../constants";
 
 export const LetteringModule: ModuleStrategy = {
   id: 'core lettering',
@@ -51,8 +52,7 @@ ${colorRule}
 
   constructNegativePrompt: (context: GenerationContext) => {
     const { preset } = context;
-    const globalNegative = "photorealistic, 3d render, blurry, messy lines, realistic lighting, grainy, depth of field, photography, oil painting, brushstrokes, charcoal, film grain, volumetric lighting, raytracing, realistic textures, messy handwriting, background scenery, people, mockups, organic shadows, overlapping debris, spray mist";
-    return preset.negativePrompt ? `${preset.negativePrompt}, ${globalNegative}` : globalNegative;
+    return preset.negativePrompt ? `${preset.negativePrompt}, ${GLOBAL_NEGATIVE_PROMPT}` : GLOBAL_NEGATIVE_PROMPT;
   },
 
   shouldSkipTurbo: (context: GenerationContext) => {

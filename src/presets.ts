@@ -133,7 +133,13 @@ const rawTypographyPresets = [
       { name: "Geometric Mosaic", basePrompt: "mosaic typography, '[WORD]' built from small uniform vector tiles and squares, rigid geometric grid, vibrant color blocks, modern pixel-mosaic aesthetic", aspectRatio: "1:1", negativePrompt: "" },
       { name: "Shattered Glass Fractal", basePrompt: "fractal typography, '[WORD]' viewed through a shattered glass pane, sharp triangular shards, overlapping transparent color segments, high-speed kinetic energy", aspectRatio: "1:1", negativePrompt: "" },
       { name: "Liquid Chrome (Flat)", basePrompt: "liquid metal typography, '[WORD]' as a single continuous bead of molten chrome, high-gloss flat vector finish, metallic sheen, organic fluid connections", aspectRatio: "1:1", negativePrompt: "" },
-      { name: "Shadow-Play Silhouette", basePrompt: "minimalist flat-shadow typography, '[WORD]' with a single exaggerated long hard-edge shadow at a 45-degree angle, high-contrast 2D depth, solid colors", aspectRatio: "1:1", negativePrompt: "" }
+      { name: "Shadow-Play Silhouette", basePrompt: "minimalist flat-shadow typography, '[WORD]' with a single exaggerated long hard-edge shadow at a 45-degree angle, high-contrast 2D depth, solid colors", aspectRatio: "1:1", negativePrompt: "" },
+      { name: "Oceanic Wave-Breaker", basePrompt: "bold heavy sans-serif '[WORD]', stylized crashing ocean waves integrated into the bottom half and overlapping letter strokes, high-contrast blue and white, clean vector", aspectRatio: "1:1", negativePrompt: "" },
+      { name: "Flame-Drop Silhouette", basePrompt: "typography of '[WORD]' warped into a perfect teardrop flame silhouette, letters stretching and curving to fill the shape, vibrant orange to pink gradient aesthetic, clean vector", aspectRatio: "1:1", negativePrompt: "" },
+      { name: "Cosmic Nebula Mask", basePrompt: "bold blocky '[WORD]', internal fill of swirling cosmic nebula and stars, celestial motifs breaking out of letter boundaries, deep purple and gold accents", aspectRatio: "1:1", negativePrompt: "" },
+      { name: "Glitch-Core Distortion", basePrompt: "heavy sans-serif '[WORD]', extreme horizontal slicing and pixel-sorting effects, digital noise artifacts integrated into strokes, high-tech cybernetic aesthetic", aspectRatio: "1:1", negativePrompt: "" },
+      { name: "Organic Root-System", basePrompt: "typography of '[WORD]', where the base of each letter transforms into a complex network of spreading tree roots, earthy tones, detailed vector line-work", aspectRatio: "1:1", negativePrompt: "" },
+      { name: "Prismatic Glass Refraction", basePrompt: "bold '[WORD]' viewed through a prism, letters split into refracted rainbow color planes, sharp geometric offsets, translucent overlapping segments", aspectRatio: "1:1", negativePrompt: "" }
     ]
   }
 ];

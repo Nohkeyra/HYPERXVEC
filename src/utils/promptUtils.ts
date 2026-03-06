@@ -45,8 +45,19 @@ export const parsePromptWeights = (prompt: string): WeightedPrompt => {
   };
 };
 
+export const stripMarkdown = (prompt: string): string => {
+  return prompt
+    .replace(/### \d+\. .*/g, '') // Remove headers like ### 1. PRIMARY OBJECTIVE
+    .replace(/\n\n/g, ' ') // Replace double newlines with space
+    .replace(/\n/g, ' ') // Replace single newlines with space
+    .replace(/- /g, '') // Remove bullet points
+    .replace(/\s+/g, ' ') // Replace multiple spaces with single space
+    .trim();
+};
+
 /**
- * Formats the prompt for Gemini to explicitly handle attention/weighting.
+ * Specifically cleans the prompt for Flux models by removing technical jargon
+ * and keeping only the visual descriptions.
  */
 export const formatForGeminiAttention = (prompt: string): string => {
   const { cleaned, weights } = parsePromptWeights(prompt);
