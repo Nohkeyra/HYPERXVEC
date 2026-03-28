@@ -45,7 +45,7 @@ jobs:
           cache: 'gradle'
 
       - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
+        uses: android-actions/setup-android@v4
 
       - name: Accept Android SDK licenses (non-interactive)
         run: $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses --no_https
